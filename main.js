@@ -22,7 +22,7 @@ var upgrades = [
   {name:"Speed",f:()=>player.speed+=0.2,weight:1,description:"You move faster",max:15},
   {name:"Multishot",f:()=>player.multishot+=1,weight:0.3,description:"Shoot more bullets",max:10},
   {name:"Reload",f:()=>player.reloadTime*=0.85,weight:0.8,description:"Shoot faster",max:10},
-  {name:"Health",f:()=>{player.maxHp++;player.hp=player.maxHp},weight:0.9,description:"More max health",max:5},
+  {name:"Health",f:()=>{player.maxHp++;player.hp+=2;},weight:0.9,description:"More max health",max:5},
   {name:"Projectile Speed",f:()=>player.projectileSpeed+=2,weight:1,description:"Your bullets move faster",max:10}
 ];
 var picks = [
@@ -171,10 +171,10 @@ function draw() {
       if(player.xp>player.lvlUp) {
         player.lvl++;
         player.xp -=player.lvlUp;
-        player.lvlUp += 10;
-        player.lvlUp *= 1.1;
+        player.lvlUp += 5;
+        player.lvlUp *= 1.05;
         player.score += 1000;
-        player.hp+=2;
+        player.hp+=1;
         levelUp = true;
         let choices = [];
         upgrades.forEach((e,i) => {
