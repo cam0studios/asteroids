@@ -565,7 +565,7 @@ function draw() {
       
       textSize(25);
       text("Control Layout:",size.x/2,200);
-      text("Show Arrows:",size.x/2,350);
+      text("Pickup Guides:",size.x/2,350);
     }
     if(levelUp) {
       textSize(40);
