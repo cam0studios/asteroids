@@ -1,38 +1,48 @@
 var asteroids,
   bullets,
   explosions,
-  pickups,
   asteroidReload,
   asteroidReloadTime,
   size,
-  worldSize,
   pause,
   pauseKey,
   pauseBtns,
   oldBtns,
-  prefers = { controls: 1, showArrows: true },
+  prefers = { controls: 1, showArrows: true, doScreenshake: true },
   timer,
   levelUp,
   levelUpgrades,
-  player;
+  player,
+  world = {
+    size: null,
+    pickups: [],
+    screenshakeIntensityX: 0,
+    screenshakeIntensityY: 0,
+    screenshakeTimeRemaining: 0,
+    setScreenshake: (x, y, time) => {
+      world.screenshakeIntensityX = x;
+      world.screenshakeIntensityY = y
+      world.screenshakeTimeRemaining = time
+    }
+  };
 if (!localStorage.getItem("highscore")) {
-  localStorage.setItem("highscore", 3000);
+  localStorage.setItem("highscore", 0);
 }
-var upgrades = [
-  { name: "Speed", f: () => player.speed += 0.2, weight: 1, description: "You move faster", max: 15 },
+const upgrades = [
+  { name: "Speed", f: () => player.speed += 0.2, weight: 1, description: "Your ship moves faster", max: 15 },
   { name: "Multishot", f: () => player.multishot += 1, weight: 0.3, description: "Shoot more bullets", max: 10 },
-  { name: "Reload", f: () => player.reloadTime *= 0.85, weight: 0.8, description: "Shoot faster", max: 10 },
-  { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "More max health", max: 5 },
+  { name: "Fire rate", f: () => player.reloadTime *= 0.85, weight: 0.8, description: "Shoot faster", max: 10 },
+  { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "Increases your max health by 1", max: 5 },
   { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 }
 ];
-var picks = [
+const pickupData = [
   {
-    col: "rgb(220,50,0)",
+    col: "rgb(220, 50, 0)",
     weight: 1,
     collect: () => { player.hp++; player.score += 350; },
     draw: () => {
-      fill("rgb(220,50,0)");
-      stroke("rgb(190,40,0)");
+      fill("rgb(220, 50, 0)");
+      stroke("rgb(190, 40, 0)");
       strokeWeight(5);
       beginShape();
       vertex(0, 10);
@@ -50,8 +60,8 @@ var picks = [
     weight: 0.7,
     collect: () => { player.shield = true; player.score += 350; },
     draw: () => {
-      fill("rgb(50,150,250)");
-      stroke("rgb(50,130,220)");
+      fill("rgb(50, 150, 250)");
+      stroke("rgb(50, 130, 220)");
       strokeWeight(5);
       beginShape();
       vertex(0, 10);
@@ -64,13 +74,15 @@ var picks = [
     }
   },
   {
-    col: "rgb(230,200,50)", weight: 0.3, collect: () => { player.score += 1000; player.xp += 35 },
+    col: "rgb(230, 200, 50)",
+    weight: 0.3,
+    collect: () => { player.score += Math.max(75, player.lvlUp / 10); player.xp += 35 },
     draw: () => {
-      fill("rgb(230,200,50)");
-      stroke("rgb(200,180,40)");
+      fill("rgb(230, 200, 50)");
+      stroke("rgb(200, 180, 40)");
       strokeWeight(5);
       circle(0, 0, 25);
-      stroke("rgb(210,190,40)");
+      stroke("rgb(210, 190, 40)");
       line(0, -5, 0, 5);
     }
   }
@@ -80,6 +92,7 @@ function setup() {
   upgrades.forEach((e) => {
     e.times = 0;
   });
+
   pause = false;
   pauseKey = false;
   levelUp = false;
@@ -88,52 +101,54 @@ function setup() {
   asteroids = [];
   bullets = [];
   explosions = [];
-  pickups = [];
+  world.pickups = [];
   asteroidReload = 0;
   asteroidReloadTime = 250;
   asteroidSpeed = 2;
   timer = 0;
-  worldSize = v(1500, 1500);
+  world.size = v(1500, 1500);
   size = v(innerWidth, innerHeight);
-  if (size.x > worldSize.x - 10) size.x = worldSize.x - 10;
-  if (size.y > worldSize.y - 10) size.y = worldSize.y - 10;
+  if (size.x > world.size.x - 10) size.x = world.size.x - 10;
+  if (size.y > world.size.y - 10) size.y = world.size.y - 10;
+
   createCanvas(size.x, size.y);
   asteroids.push({ pos: v(200, 200), vel: v(3, 2), size: 40, hp: 2 });
 
-  player = {};
-  player.pos = v(0, 0);
-  player.vel = v(0, 0);
-  player.dir = 0;
-  player.dirVel = 0;
-  player.reload = 0;
-  player.hp = 5;
-  player.maxHp = 5;
-  player.alive = true;
-  player.restart = false;
-  player.score = 0;
-  player.iframe = 0;
-  player.xp = 0;
-  player.lvlUp = 50;
-  player.lvl = 0;
-  player.speed = 0.4;
-  player.multishot = 1;
-  player.reloadTime = 5;
-  player.spread = 0.1;
-  player.shield = false;
-  player.projectileSpeed = 15;
+  player = {
+    pos: v(0, 0),
+    vel: v(0, 0),
+    dir: 0,
+    dirVel: 0,
+    reload: 0,
+    hp: 5,
+    maxHp: 5,
+    alive: true,
+    restart: false,
+    score: 0,
+    iframe: 0,
+    xp: 0,
+    lvlUp: 50,
+    lvl: 0,
+    speed: 0.4,
+    multishot: 1,
+    reloadTime: 5,
+    spread: 0.1,
+    shield: false,
+    projectileSpeed: 15
+  };
   frameRate(1000);
 
   // testing, all pickups
-  for (let i = 0; i < picks.length; i++) {
-    pickups.push({ pos: v(i * 100 - picks.length * 50 + 50, -100), type: i })
-  }
+  // for (let i = 0; i < pickupData.length; i++) {
+  //   world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 50, -100), type: i })
+  // }
 }
 
 function draw() {
   if (!pause && !levelUp) {
     if (asteroidReload <= 0 && player.alive) {
       asteroidReload = asteroidReloadTime;
-      asteroidReloadTime *= 0.95;
+      asteroidReloadTime *= 0.975;
       if (asteroidReloadTime < 30) asteroidReloadTime = 30;
       asteroidSpeed += 0.2;
       asteroids.push({
@@ -160,17 +175,17 @@ function draw() {
         player.dir = p5.Vector.sub(v(mouseX, mouseY), p5.Vector.div(size, 2)).heading();
       }
       player.iframe -= deltaTime * 0.03;
-      if (player.pos.x > worldSize.x / 2) {
-        player.pos.x -= worldSize.x;
+      if (player.pos.x > world.size.x / 2) {
+        player.pos.x -= world.size.x;
       }
-      if (player.pos.y > worldSize.y / 2) {
-        player.pos.y -= worldSize.y;
+      if (player.pos.y > world.size.y / 2) {
+        player.pos.y -= world.size.y;
       }
-      if (player.pos.x < -worldSize.x / 2) {
-        player.pos.x += worldSize.x;
+      if (player.pos.x < -world.size.x / 2) {
+        player.pos.x += world.size.x;
       }
-      if (player.pos.y < -worldSize.y / 2) {
-        player.pos.y += worldSize.y;
+      if (player.pos.y < -world.size.y / 2) {
+        player.pos.y += world.size.y;
       }
       if (player.hp > player.maxHp) player.hp = player.maxHp;
       if (player.xp > player.lvlUp) {
@@ -212,6 +227,7 @@ function draw() {
       }
       if (player.hp <= 0) {
         player.alive = false;
+        world.setScreenshake(6, 6, 0.5)
         explosions.push({ pos: player.pos.copy(), vel: player.vel.copy(), size: 20, tick: 0 });
         bullets = [];
         if (player.score >= parseInt(localStorage.getItem("highscore"))) localStorage.setItem("highscore", player.score);
@@ -224,17 +240,17 @@ function draw() {
         e.vel.mult(10);
       }
       e.pos.add(e.vel);
-      if (e.pos.x > worldSize.x / 2) {
-        e.pos.x -= worldSize.x;
+      if (e.pos.x > world.size.x / 2) {
+        e.pos.x -= world.size.x;
       }
-      if (e.pos.y > worldSize.y / 2) {
-        e.pos.y -= worldSize.y;
+      if (e.pos.y > world.size.y / 2) {
+        e.pos.y -= world.size.y;
       }
-      if (e.pos.x < -worldSize.x / 2) {
-        e.pos.x += worldSize.x;
+      if (e.pos.x < -world.size.x / 2) {
+        e.pos.x += world.size.x;
       }
-      if (e.pos.y < -worldSize.y / 2) {
-        e.pos.y += worldSize.y;
+      if (e.pos.y < -world.size.y / 2) {
+        e.pos.y += world.size.y;
       }
 
       if (player.alive) {
@@ -262,40 +278,7 @@ function draw() {
         }
       }
     });
-    bullets.forEach((e, i) => {
-      e.pos.add(p5.Vector.mult(e.vel, deltaTime * 0.03));
-      e.dst.add(p5.Vector.mult(p5.Vector.sub(e.vel, player.vel), deltaTime * 0.03));
-      let s = -e.vel.mag();
-      if (e.dst.x > worldSize.x / 2 + s || e.dst.y > worldSize.y / 2 + s || e.dst.x < -worldSize.x / 2 - s || e.dst.y < -worldSize.y / 2 - s) {
-        bullets.splice(i, 1);
-      } else {
-        if (e.pos.x > worldSize.x / 2) {
-          e.pos.x -= worldSize.x;
-        }
-        if (e.pos.y > worldSize.y / 2) {
-          e.pos.y -= worldSize.y;
-        }
-        if (e.pos.x < -worldSize.x / 2) {
-          e.pos.x += worldSize.x;
-        }
-        if (e.pos.y < -worldSize.y / 2) {
-          e.pos.y += worldSize.y;
-        }
-        asteroids.forEach((t, ti) => {
-          let dst = p5.Vector.sub(e.pos, t.pos);
-          if (dst.mag() < t.size / 2 + 10) {
-            bullets.splice(i, 1);
-            i--;
-            t.hp -= e.dmg;
-            if (t.hp <= 0) {
-              astSplit(t.pos.copy(), e.vel.heading(), t.size, t.vel.copy(), t.size);
-              asteroids.splice(ti, 1);
-              ti--;
-            }
-          }
-        });
-      }
-    });
+    tickBullets();
     explosions.forEach((e, i) => {
       e.tick += deltaTime * 0.03;
       if (e.tick >= 2 + e.size / 4) {
@@ -308,6 +291,15 @@ function draw() {
   }
   if (levelUp) {
     pause = false;
+  }
+
+  //calculating screenshake
+  let screenModX = random(-world.screenshakeIntensityX, world.screenshakeIntensityX)
+  let screenModY = random(-world.screenshakeIntensityY, world.screenshakeIntensityY)
+  
+  world.screenshakeTimeRemaining -= deltaTime / 1000
+  if (world.screenshakeTimeRemaining > 0 && prefers.doScreenshake) {
+    translate(screenModX, screenModY)
   }
 
   background(0);
@@ -327,9 +319,9 @@ function draw() {
   translate(size.x / 2, size.y / 2);
   push();
   translate(-player.pos.x, -player.pos.y);
-  pickups.forEach((e) => { e.closest = v(0, 0) });
-  for (let xOff = -worldSize.x; xOff <= worldSize.x; xOff += worldSize.x) {
-    for (let yOff = -worldSize.y; yOff <= worldSize.y; yOff += worldSize.y) {
+  world.pickups.forEach((e) => { e.closest = v(0, 0) });
+  for (let xOff = -world.size.x; xOff <= world.size.x; xOff += world.size.x) {
+    for (let yOff = -world.size.y; yOff <= world.size.y; yOff += world.size.y) {
       push();
       translate(xOff, yOff);
       explosions.forEach((e, i) => {
@@ -341,24 +333,24 @@ function draw() {
       stroke(255);
       strokeWeight(5);
       noFill();
-      asteroids.forEach((e) => {
-        ellipse(e.pos.x, e.pos.y, e.size, e.size);
+      asteroids.forEach((a) => {
+        ellipse(a.pos.x, a.pos.y, a.size, a.size);
       });
-      bullets.forEach((e) => {
-        line(e.pos.x, e.pos.y, e.pos.x - (e.vel.x - e.playerVel.x), e.pos.y - (e.vel.y - e.playerVel.y));
+      bullets.forEach((b) => {
+        line(b.pos.x, b.pos.y, b.pos.x - (b.vel.x - b.playerVel.x), b.pos.y - (b.vel.y - b.playerVel.y));
       });
-      pickups.forEach((e, i) => {
+      world.pickups.forEach((pickup, i) => {
         push();
-        translate(e.pos);
-        picks[e.type].draw();
+        translate(pickup.pos);
+        pickupData[pickup.type].draw();
         pop();
-        let pos = p5.Vector.add(e.pos, v(xOff, yOff));
+        let pos = p5.Vector.add(pickup.pos, v(xOff, yOff));
         if (p5.Vector.sub(pos, player.pos).mag() <= 50) {
-          pickups.splice(i, 1);
-          picks[e.type].collect();
+          world.pickups.splice(i, 1);
+          pickupData[pickup.type].collect();
         }
-        if (p5.Vector.sub(pos, player.pos).mag() < p5.Vector.sub(p5.Vector.add(e.pos, e.closest), player.pos)) {
-          e.closest = v(xOff, yOff);
+        if (p5.Vector.sub(pos, player.pos).mag() < p5.Vector.sub(p5.Vector.add(pickup.pos, pickup.closest), player.pos)) {
+          pickup.closest = v(xOff, yOff);
         }
       });
       pop();
@@ -372,7 +364,7 @@ function draw() {
     if (prefers.controls == 0) {
       strokeWeight(2);
       for (let dst = 30; dst < 500; dst += 10) {
-        stroke("rgba(255,255,255," + 75 / (dst + 60) + ")");
+        stroke("rgba(255, 255, 255, " + 75 / (dst + 60) + ")");
         line(dst, 0, dst + 5, 0);
       }
     }
@@ -381,159 +373,22 @@ function draw() {
     else fill(0);
     triangle(-15, -15, -15, 15, 20, 0);
     if (player.shield) {
-      fill("rgba(50,200,250,0.3)");
-      stroke("rgb(0,150,250)");
+      fill("rgba(50, 200, 250, 0.3)");
+      stroke("rgb(0, 150, 250)");
       strokeWeight(5);
       circle(0, 0, 65);
     }
     pop();
   }
   if (player.alive) {
-    if (prefers.showArrows) {
-      pickups.forEach((e) => {
-        let pos = p5.Vector.add(e.pos, e.closest);
-        let dif = p5.Vector.sub(player.pos, pos);
-        let render = false;
-        let s = p5.Vector.sub(size, v(20, 20));
-        if (dif.x <= -s.x / 2) {
-          render = true;
-          dif.div(dif.x / (-s.x / 2));
-        }
-        if (dif.y <= -s.y / 2) {
-          render = true;
-          dif.div(dif.y / (-s.y / 2));
-        }
-        if (dif.x >= s.x / 2) {
-          render = true;
-          dif.div(dif.x / (s.x / 2));
-        }
-        if (dif.y >= s.y / 2) {
-          render = true;
-          dif.div(dif.y / (s.y / 2));
-        }
-        if (render) {
-          push();
-          translate(p5.Vector.mult(dif, -1));
-          rotate(dif.heading());
-          fill(picks[e.type].col);
-          noStroke();
-          triangle(10, -10, 10, 10, -15, 0);
-          pop();
-        }
-      });
-    }
+    drawPointerArrows();
   }
   pop();
-  if (player.alive) {
-    for (let i = 0; i < player.maxHp; i++) {
-      fill(player.hp >= (i + 1) ? 255 : 0);
-      stroke(255);
-      strokeWeight(3);
-      push();
-      translate(30 + i * 35, 25);
-      beginShape();
-      vertex(0, 15);
-      vertex(-13, 2);
-      vertex(-7, -4);
-      vertex(0, 2);
-      vertex(7, -4);
-      vertex(13, 2);
-      vertex(0, 15);
-      endShape();
-      pop();
-    }
-
-    fill(255);
-    stroke(255);
-    strokeWeight(1);
-    textSize(20);
-    textAlign(LEFT);
-    textFont("monospace");
-    textStyle(NORMAL);
-    text(player.score, 20, 90);
-    text("Level " + (player.lvl + 1), 20, 110);
-
-    fill(0);
-    stroke(255);
-    strokeWeight(2);
-    rect(20, 54, 160, 10);
-    fill(255);
-    rect(20, 54, 160 * player.xp / player.lvlUp, 10);
-
-    textSize(40);
-    textAlign(CENTER);
-    let sec = floor(timer % 60).toString();
-    text(`${floor(timer / 60)}:${sec.length == 1 ? "0" + sec : sec}`, size.x / 2, 40);
-
-    fill("rgba(0,0,0,0.5)");
-    stroke(250);
-    strokeWeight(3);
-    rect(size.x - 160, size.y - 160, 150, 150);
-    push();
-    translate(size.x - 85, size.y - 85);
-    scale(150 / worldSize.x);
-
-    strokeWeight(10);
-    fill("rgba(0,0,0,0.5)");
-    for (let x = -worldSize.x; x <= worldSize.x; x += worldSize.x) {
-      for (let y = -worldSize.y; y <= worldSize.y; y += worldSize.y) {
-        let x1 = player.pos.x - size.x / 2 + x;
-        if (x1 > worldSize.x / 2) x1 = worldSize.x / 2;
-        if (x1 < -worldSize.x / 2) x1 = -worldSize.x / 2;
-        let y1 = player.pos.y - size.y / 2 + y;
-        if (y1 > worldSize.y / 2) y1 = worldSize.y / 2;
-        if (y1 < -worldSize.y / 2) y1 = -worldSize.y / 2;
-        let x2 = player.pos.x + size.x / 2 + x;
-        if (x2 > worldSize.x / 2) x2 = worldSize.x / 2;
-        if (x2 < -worldSize.x / 2) x2 = -worldSize.x / 2;
-        let y2 = player.pos.y + size.y / 2 + y;
-        if (y2 > worldSize.y / 2) y2 = worldSize.y / 2;
-        if (y2 < -worldSize.y / 2) y2 = -worldSize.y / 2;
-        rect(x1, y1, x2 - x1, y2 - y1);
-      }
-    }
-
-    strokeWeight(5);
-    fill(255);
-    asteroids.forEach((e) => {
-      ellipse(e.pos.x, e.pos.y, e.size, e.size);
-    });
-    pickups.forEach((e) => {
-      fill(picks[e.type].col);
-      circle(e.pos.x, e.pos.y, 40);
-    });
-    push();
-    translate(player.pos);
-    rotate(player.dir);
-    fill(255);
-    triangle(-20, -25, -20, 25, 35, 0);
-    pop();
-    pop();
-  } else {
-    fill(255);
-    stroke(0);
-    strokeWeight(5);
-    textAlign(CENTER);
-    textStyle(BOLD);
-    textFont("monospace");
-    textSize(70);
-    text("You Died", size.x / 2, size.y / 2 - 30);
-    textSize(30);
-    if (player.score >= parseInt(localStorage.getItem("highscore"))) {
-      text("New highscore! " + player.score, size.x / 2, size.y / 2 + 20);
-      text("Press space to restart", size.x / 2, size.y / 2 + 60);
-    } else {
-      text("Your score: " + player.score, size.x / 2, size.y / 2 + 20);
-      text("Highscore: " + localStorage.getItem("highscore"), size.x / 2, size.y / 2 + 60);
-      text("Press space to restart", size.x / 2, size.y / 2 + 100);
-    }
-    if (keyIsDown(32) && !player.restart) {
-      setup();
-    }
-  }
+  
+  player.alive ? drawHUD() : drawDeathScreen()
 
   if (pause || levelUp) {
-    fill("rgba(0,0,0,0.5)");
+    fill("rgba(0, 0, 0, 0.5)");
     noStroke();
     rect(0, 0, size.x, size.y);
 
@@ -541,59 +396,10 @@ function draw() {
     strokeWeight(0);
     pauseBtns = [];
     if (pause) {
-      button("Resume", 120, 0, 0, () => {
-        pause = false;
-      });
-      let controlLayouts = ["AD Turning", "Mouse+WASD"];
-      button(controlLayouts[prefers.controls], 210, 1, 0, () => {
-        prefers.controls++;
-        if (prefers.controls > controlLayouts.length - 1) {
-          prefers.controls -= controlLayouts.length;
-        }
-      });
-      button("Quit", 260, 2, 0, () => {
-        player.hp = 0;
-        pause = false;
-      });
-      button(prefers.showArrows ? "Yes" : "No", 360, 3, 0, () => {
-        prefers.showArrows = !prefers.showArrows;
-      });
-
-      textSize(40);
-      textAlign(CENTER);
-      textStyle(NORMAL);
-      textFont("monospace");
-      fill(255);
-      stroke(255);
-      strokeWeight(1);
-      text("Paused", size.x / 2, 100);
-
-      textSize(25);
-      text("Control Layout:", size.x / 2, 200);
-      text("Pickup Guides:", size.x / 2, 350);
+      drawPauseMenu();
     }
     if (levelUp) {
-      textSize(40);
-      textAlign(CENTER);
-      textStyle(NORMAL);
-      textFont("monospace");
-      fill(255);
-      stroke(255);
-      strokeWeight(1);
-      text("Level Up!", size.x / 2, 100);
-      levelUpgrades.forEach((e, i) => {
-        button(e.name, 120 + i * 65, i, 1, () => {
-          e.f();
-          upgrades[e.i].times++;
-          levelUp = false;
-        }, e.description);
-      });
-      if (levelUpgrades.length == 0) {
-        button("Next", 120, 0, 1, () => {
-          levelUp = false;
-          player.score += 2000;
-        }, "Adds 2000 xp");
-      }
+      drawLevelUpScreen();
     }
     oldBtns = pauseBtns;
   }
@@ -627,11 +433,260 @@ function draw() {
   player.restart = keyIsDown(32);
   pauseKey = keyIsDown(27);
 }
+
+function tickBullets() {
+  bullets.forEach((e, i) => {
+    e.pos.add(p5.Vector.mult(e.vel, deltaTime * 0.03));
+    e.dst.add(p5.Vector.mult(p5.Vector.sub(e.vel, player.vel), deltaTime * 0.03));
+    let s = -e.vel.mag();
+    if (e.dst.x > world.size.x / 2 + s || e.dst.y > world.size.y / 2 + s || e.dst.x < -world.size.x / 2 - s || e.dst.y < -world.size.y / 2 - s) {
+      bullets.splice(i, 1);
+    } else {
+      if (e.pos.x > world.size.x / 2) {
+        e.pos.x -= world.size.x;
+      }
+      if (e.pos.y > world.size.y / 2) {
+        e.pos.y -= world.size.y;
+      }
+      if (e.pos.x < -world.size.x / 2) {
+        e.pos.x += world.size.x;
+      }
+      if (e.pos.y < -world.size.y / 2) {
+        e.pos.y += world.size.y;
+      }
+      asteroids.forEach((t, ti) => {
+        let dst = p5.Vector.sub(e.pos, t.pos);
+        if (dst.mag() < t.size / 2 + 10) {
+          bullets.splice(i, 1);
+          i--;
+          t.hp -= e.dmg;
+          if (t.hp <= 0) {
+            astSplit(t.pos.copy(), e.vel.heading(), t.size, t.vel.copy(), t.size);
+            asteroids.splice(ti, 1);
+            ti--;
+          }
+        }
+      });
+    }
+  });
+}
+
+function drawLevelUpScreen() {
+  textSize(40);
+  textAlign(CENTER);
+  textStyle(NORMAL);
+  textFont("monospace");
+  fill(255);
+  stroke(255);
+  strokeWeight(1);
+  text("Level Up!", size.x / 2, 100);
+  levelUpgrades.forEach((e, i) => {
+    button(e.name, 120 + i * 65, i, 1, () => {
+      e.f();
+      upgrades[e.i].times++;
+      levelUp = false;
+    }, e.description);
+  });
+  if (levelUpgrades.length == 0) {
+    button("Next", 120, 0, 1, () => {
+      levelUp = false;
+      player.score += 2000;
+    }, "Adds 2000 xp");
+  }
+}
+
+function drawPauseMenu() {
+  button("Resume", 120, 0, 0, () => {
+    pause = false;
+  });
+  let controlLayouts = ["AD Turning", "Mouse + WASD"];
+  button(controlLayouts[prefers.controls], 210, 1, 0, () => {
+    prefers.controls++;
+    if (prefers.controls > controlLayouts.length - 1) {
+      prefers.controls -= controlLayouts.length;
+    }
+  });
+
+  button(prefers.showArrows ? "Yes" : "No", 300, 3, 0, () => {
+    prefers.showArrows = !prefers.showArrows;
+  });
+
+  button(prefers.doScreenshake ? "Yes" : "No", 390, 3, 0, () => {
+    prefers.doScreenshake = !prefers.doScreenshake;
+  });
+
+  button("Quit", 560, 2, 0, () => {
+    player.hp = 0;
+    pause = false;
+  });
+
+  textSize(40);
+  textAlign(CENTER);
+  textStyle(NORMAL);
+  textFont("monospace");
+  fill(255);
+  stroke(255);
+  strokeWeight(1);
+  text("Paused", size.x / 2, 100);
+
+  textSize(25);
+  text("Control Layout:", size.x / 2, 200);
+  text("Pickup Guides:", size.x / 2, 290);
+  text("Screenshake Active: ", size.x / 2, 380);
+}
+
+function drawDeathScreen() {
+  fill(255);
+  stroke(0);
+  strokeWeight(5);
+  textAlign(CENTER);
+  textStyle(BOLD);
+  textFont("monospace");
+  textSize(70);
+  text("You Died", size.x / 2, size.y / 2 - 30);
+  textSize(30);
+  if (player.score >= parseInt(localStorage.getItem("highscore"))) {
+    text("New highscore! " + player.score, size.x / 2, size.y / 2 + 20);
+    text("Press space to restart", size.x / 2, size.y / 2 + 60);
+  } else {
+    text("Your score: " + player.score, size.x / 2, size.y / 2 + 20);
+    text("Highscore: " + localStorage.getItem("highscore"), size.x / 2, size.y / 2 + 60);
+    text("Press space to restart", size.x / 2, size.y / 2 + 100);
+  }
+  if (keyIsDown(32) && !player.restart) {
+    setup();
+  }
+}
+
+function drawHUD() {
+  for (let i = 0; i < player.maxHp; i++) {
+    fill(player.hp >= (i + 1) ? 255 : 0);
+    stroke(255);
+    strokeWeight(3);
+    push();
+    translate(30 + i * 35, 25);
+    beginShape();
+    vertex(0, 15);
+    vertex(-13, 2);
+    vertex(-7, -4);
+    vertex(0, 2);
+    vertex(7, -4);
+    vertex(13, 2);
+    vertex(0, 15);
+    endShape();
+    pop();
+  }
+
+  fill(255);
+  stroke(255);
+  strokeWeight(1);
+  textSize(20);
+  textAlign(LEFT);
+  textFont("monospace");
+  textStyle(NORMAL);
+  text(player.score, 20, 90);
+  text("Level " + (player.lvl + 1), 20, 110);
+
+  fill(0);
+  stroke(255);
+  strokeWeight(2);
+  rect(20, 54, 160, 10);
+  fill(255);
+  rect(20, 54, 160 * player.xp / player.lvlUp, 10);
+
+  textSize(40);
+  textAlign(CENTER);
+  let sec = floor(timer % 60).toString();
+  text(`${floor(timer / 60)}:${sec.length == 1 ? "0" + sec : sec}`, size.x / 2, 40);
+
+  fill("rgba(0, 0, 0, 0.5)");
+  stroke(250);
+  strokeWeight(3);
+  rect(size.x - 160, size.y - 160, 150, 150);
+  push();
+  translate(size.x - 85, size.y - 85);
+  scale(150 / world.size.x);
+
+  strokeWeight(10);
+  fill("rgba(0, 0, 0, 0.5)");
+  for (let x = -world.size.x; x <= world.size.x; x += world.size.x) {
+    for (let y = -world.size.y; y <= world.size.y; y += world.size.y) {
+      let x1 = player.pos.x - size.x / 2 + x;
+      if (x1 > world.size.x / 2) x1 = world.size.x / 2;
+      if (x1 < -world.size.x / 2) x1 = -world.size.x / 2;
+      let y1 = player.pos.y - size.y / 2 + y;
+      if (y1 > world.size.y / 2) y1 = world.size.y / 2;
+      if (y1 < -world.size.y / 2) y1 = -world.size.y / 2;
+      let x2 = player.pos.x + size.x / 2 + x;
+      if (x2 > world.size.x / 2) x2 = world.size.x / 2;
+      if (x2 < -world.size.x / 2) x2 = -world.size.x / 2;
+      let y2 = player.pos.y + size.y / 2 + y;
+      if (y2 > world.size.y / 2) y2 = world.size.y / 2;
+      if (y2 < -world.size.y / 2) y2 = -world.size.y / 2;
+      rect(x1, y1, x2 - x1, y2 - y1);
+    }
+  }
+
+  strokeWeight(5);
+  fill(255);
+  asteroids.forEach((e) => {
+    ellipse(e.pos.x, e.pos.y, e.size, e.size);
+  });
+  world.pickups.forEach((e) => {
+    fill(pickupData[e.type].col);
+    circle(e.pos.x, e.pos.y, 40);
+  });
+  push();
+  translate(player.pos);
+  rotate(player.dir);
+  fill(255);
+  triangle(-20, -25, -20, 25, 35, 0);
+  pop();
+  pop();
+}
+
+function drawPointerArrows() {
+  if (prefers.showArrows) {
+    world.pickups.forEach((e) => {
+      let pos = p5.Vector.add(e.pos, e.closest);
+      let dif = p5.Vector.sub(player.pos, pos);
+      let render = false;
+      let s = p5.Vector.sub(size, v(20, 20));
+      if (dif.x <= -s.x / 2) {
+        render = true;
+        dif.div(dif.x / (-s.x / 2));
+      }
+      if (dif.y <= -s.y / 2) {
+        render = true;
+        dif.div(dif.y / (-s.y / 2));
+      }
+      if (dif.x >= s.x / 2) {
+        render = true;
+        dif.div(dif.x / (s.x / 2));
+      }
+      if (dif.y >= s.y / 2) {
+        render = true;
+        dif.div(dif.y / (s.y / 2));
+      }
+      if (render) {
+        push();
+        translate(p5.Vector.mult(dif, -1));
+        rotate(dif.heading());
+        fill(pickupData[e.type].col);
+        noStroke();
+        triangle(10, -10, 10, 10, -15, 0);
+        pop();
+      }
+    });
+  }
+}
+
 function v(x, y) {
   return createVector(x, y);
 }
 function astSplit(pos, dir, size, vel, dst) {
   explosions.push({ pos: pos.copy(), vel: vel.copy(), tick: 0, size: size / 3 });
+  world.setScreenshake(size / 10, size / 10, 0.1)
   player.score += size > 35 ? 150 : (size > 25 ? 100 : 75);
   player.xp += size > 35 ? 2 : 1;
   if (size > 35 && random() > 0.5) {
@@ -639,10 +694,10 @@ function astSplit(pos, dir, size, vel, dst) {
   }
   if (random() < (size / 100 - 0.2) * 100 / (timer + 200) + 0.01) {
     let choices = [];
-    picks.forEach((e, i) => {
-      for (let n = 0; n < e.weight * 20; n++) choices.push(i);
+    pickupData.forEach((option, i) => {
+      for (let n = 0; n < option.weight * 20; n++) choices.push(i);
     });
-    pickups.push({ type: floor(random() * picks.length), pos: pos });
+    world.pickups.push({ type: floor(random() * pickupData.length), pos: pos });
   }
   if (size >= 25) {
     let num = 3;//+Math.round(random());
@@ -659,7 +714,7 @@ function astSplit(pos, dir, size, vel, dst) {
     }
   }
 }
-function button(txt, yPos, i, style, fun, desc) {
+function button(txt, yPos, i, style, func, desc) {
   textSize(30);
   textAlign(CENTER);
   textStyle(NORMAL);
@@ -688,7 +743,7 @@ function button(txt, yPos, i, style, fun, desc) {
     text(desc, size.x / 2, yPos + 50);
   }
   if (hover && mouseIsPressed && !oldBtns[i]) {
-    fun();
+    func();
   }
 }
 window.onblur = () => {
