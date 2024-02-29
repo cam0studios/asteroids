@@ -19,3 +19,6 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
+window.log = (name, data) => {
+  logEvent(analytics, name, data);
+}
