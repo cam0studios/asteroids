@@ -22,3 +22,8 @@ const analytics = getAnalytics(app);
 window.log = (name, data) => {
   logEvent(analytics, name, data);
 }
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag("js", new Date());
+
+gtag("config", "G-9T5F2J6T5D");
