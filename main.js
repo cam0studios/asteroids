@@ -38,6 +38,7 @@ const upgrades = [
   { name: "Fire rate", f: () => player.reloadTime *= 0.85, weight: 0.8, description: "Shoot faster", max: 10 },
   { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "Increases your max health by 1", max: 5 },
   { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 },
+  { name: "Damage", f: () => player.dmg+=0.3, weight: 0.6, description: "Your bullets do more damage", max: 10 },
   // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 4}
 ];
 const pickupData = [
@@ -140,7 +141,8 @@ function setup() {
     spread: 0.1,
     shield: false,
     projectileSpeed: 15,
-    projectileSize: 5
+    projectileSize: 5,
+    dmg: 1
   };
   frameRate(1000);
 
@@ -224,7 +226,7 @@ function draw() {
             pos: player.pos.copy(),
             vel: v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2),
             dst: v(0, 0),
-            dmg: 0.7 / (1 + abs(i - (num - 1) / 2)) + 0.3
+            dmg: player.dmg * (0.7 / (1 + abs(i - (num - 1) / 2)) + 0.3)
           });
           bullets[bullets.length - 1].pos.add(bullets[bullets.length - 1].vel);
         }
