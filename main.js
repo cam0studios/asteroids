@@ -16,15 +16,19 @@ var asteroids,
   world = {
     size: null,
     pickups: [],
-    screenshakeIntensityX: 0,
-    screenshakeIntensityY: 0,
-    screenshakeTimeRemaining: 0,
-    setScreenshake: (x, y, time) => {
-      world.screenshakeIntensityX = x;
-      world.screenshakeIntensityY = y
-      world.screenshakeTimeRemaining = time
+    screenshake: {
+      intensityX: 0,
+      intensityY: 0,
+      timeRemaining: 0,
+      set: (x, y, time) => {
+        world.screenshake.intensityX = x
+        world.screenshake.intensityY = y
+        world.screenshake.timeRemaining = time
+      }
     }
   };
+
+const screenshakeModifier = 0.225
 if (!localStorage.getItem("highscore")) {
   localStorage.setItem("highscore", 0);
 }
@@ -33,7 +37,8 @@ const upgrades = [
   { name: "Multishot", f: () => player.multishot += 1, weight: 0.3, description: "Shoot more bullets", max: 10 },
   { name: "Fire rate", f: () => player.reloadTime *= 0.85, weight: 0.8, description: "Shoot faster", max: 10 },
   { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "Increases your max health by 1", max: 5 },
-  { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 }
+  { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 },
+  // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 4}
 ];
 const pickupData = [
   {
@@ -76,7 +81,7 @@ const pickupData = [
   {
     col: "rgb(230, 200, 50)",
     weight: 0.3,
-    collect: () => { player.score += Math.max(75, Math.floor(player.lvlUp / 10)); player.xp += 35 },
+    collect: () => { player.score += 1000; player.xp += Math.max(75, Math.floor(player.lvlUp / 10)) },
     draw: () => {
       fill("rgb(230, 200, 50)");
       stroke("rgb(200, 180, 40)");
@@ -134,7 +139,8 @@ function setup() {
     reloadTime: 5,
     spread: 0.1,
     shield: false,
-    projectileSpeed: 15
+    projectileSpeed: 15,
+    projectileSize: 5
   };
   frameRate(1000);
 
@@ -227,7 +233,7 @@ function draw() {
       }
       if (player.hp <= 0) {
         player.alive = false;
-        world.setScreenshake(6, 6, 0.5)
+        world.screenshake.set(8, 8, 1)
         explosions.push({ pos: player.pos.copy(), vel: player.vel.copy(), size: 20, tick: 0 });
         bullets = [];
         if (player.score >= parseInt(localStorage.getItem("highscore"))) localStorage.setItem("highscore", player.score);
@@ -293,14 +299,6 @@ function draw() {
     pause = false;
   }
 
-  //calculating screenshake
-  let screenModX = random(-world.screenshakeIntensityX, world.screenshakeIntensityX)
-  let screenModY = random(-world.screenshakeIntensityY, world.screenshakeIntensityY)
-  
-  world.screenshakeTimeRemaining -= deltaTime / 1000
-  if (world.screenshakeTimeRemaining > 0 && prefers.doScreenshake) {
-    translate(screenModX, screenModY)
-  }
 
   background(0);
   stroke(150);
@@ -311,6 +309,14 @@ function draw() {
   }
   for (let y = (Math.round(s - player.pos.y) % s + s) % s; y <= size.y; y += s) {
     line(0, y, size.x, y);
+  }
+  //calculating screenshake
+  let screenModX = random(-world.screenshake.intensityX, world.screenshake.intensityX)
+  let screenModY = random(-world.screenshake.intensityY, world.screenshake.intensityY)
+
+  world.screenshake.timeRemaining -= deltaTime / 1000
+  if (world.screenshake.timeRemaining > 0 && prefers.doScreenshake) {
+    translate(screenModX, screenModY)
   }
   stroke(255);
   strokeWeight(5);
@@ -337,6 +343,7 @@ function draw() {
         ellipse(a.pos.x, a.pos.y, a.size, a.size);
       });
       bullets.forEach((b) => {
+        strokeWeight(player.projectileSize);
         line(b.pos.x, b.pos.y, b.pos.x - (b.vel.x - b.playerVel.x), b.pos.y - (b.vel.y - b.playerVel.y));
       });
       world.pickups.forEach((pickup, i) => {
@@ -384,7 +391,7 @@ function draw() {
     drawPointerArrows();
   }
   pop();
-  
+
   player.alive ? drawHUD() : drawDeathScreen()
 
   if (pause || levelUp) {
@@ -435,33 +442,23 @@ function draw() {
 }
 
 function tickBullets() {
-  bullets.forEach((e, i) => {
-    e.pos.add(p5.Vector.mult(e.vel, deltaTime * 0.03));
-    e.dst.add(p5.Vector.mult(p5.Vector.sub(e.vel, player.vel), deltaTime * 0.03));
-    let s = -e.vel.mag();
-    if (e.dst.x > world.size.x / 2 + s || e.dst.y > world.size.y / 2 + s || e.dst.x < -world.size.x / 2 - s || e.dst.y < -world.size.y / 2 - s) {
+  bullets.forEach((bullet, i) => {
+    bullet.pos.add(p5.Vector.mult(bullet.vel, deltaTime * 0.03));
+    bullet.dst.add(p5.Vector.mult(p5.Vector.sub(bullet.vel, player.vel), deltaTime * 0.03));
+    let s = -bullet.vel.mag();
+    if (bullet.dst.x > world.size.x / 2 + s || bullet.dst.y > world.size.y / 2 + s || bullet.dst.x < -world.size.x / 2 - s || bullet.dst.y < -world.size.y / 2 - s) {
       bullets.splice(i, 1);
     } else {
-      if (e.pos.x > world.size.x / 2) {
-        e.pos.x -= world.size.x;
-      }
-      if (e.pos.y > world.size.y / 2) {
-        e.pos.y -= world.size.y;
-      }
-      if (e.pos.x < -world.size.x / 2) {
-        e.pos.x += world.size.x;
-      }
-      if (e.pos.y < -world.size.y / 2) {
-        e.pos.y += world.size.y;
-      }
-      asteroids.forEach((t, ti) => {
-        let dst = p5.Vector.sub(e.pos, t.pos);
-        if (dst.mag() < t.size / 2 + 10) {
+      bullet.pos.x = (bullet.pos.x + world.size.x / 2) % world.size.x - world.size.x / 2;
+      bullet.pos.y = (bullet.pos.y + world.size.y / 2) % world.size.y - world.size.y / 2;
+      asteroids.forEach((asteroid, ti) => {
+        let dst = p5.Vector.sub(bullet.pos, asteroid.pos);
+        if (dst.mag() < asteroid.size / 2 + 10 + player.projectileSize * 1.2) {
           bullets.splice(i, 1);
           i--;
-          t.hp -= e.dmg;
-          if (t.hp <= 0) {
-            astSplit(t.pos.copy(), e.vel.heading(), t.size, t.vel.copy(), t.size);
+          asteroid.hp -= bullet.dmg;
+          if (asteroid.hp <= 0) {
+            astSplit(asteroid.pos.copy(), bullet.vel.heading(), asteroid.size, asteroid.vel.copy(), asteroid.size);
             asteroids.splice(ti, 1);
             ti--;
           }
@@ -546,11 +543,11 @@ function drawDeathScreen() {
   text("You Died", size.x / 2, size.y / 2 - 30);
   textSize(30);
   if (player.score >= parseInt(localStorage.getItem("highscore"))) {
-    text("New highscore! " + player.score, size.x / 2, size.y / 2 + 20);
+    text("New highscore! " + player.score.toLocaleString(), size.x / 2, size.y / 2 + 20);
     text("Press space to restart", size.x / 2, size.y / 2 + 60);
   } else {
-    text("Your score: " + player.score, size.x / 2, size.y / 2 + 20);
-    text("Highscore: " + localStorage.getItem("highscore"), size.x / 2, size.y / 2 + 60);
+    text("Your score: " + player.score.toLocaleString(), size.x / 2, size.y / 2 + 20);
+    text("Highscore: " + parseInt(localStorage.getItem("highscore")).toLocaleString(), size.x / 2, size.y / 2 + 60);
     text("Press space to restart", size.x / 2, size.y / 2 + 100);
   }
   if (keyIsDown(32) && !player.restart) {
@@ -577,6 +574,13 @@ function drawHUD() {
     pop();
   }
 
+  fill(0);
+  stroke(255);
+  strokeWeight(2);
+  rect(20, 54, 160, 10);
+  fill(255);
+  rect(20, 54, 160 * player.xp / player.lvlUp, 10);
+
   fill(255);
   stroke(255);
   strokeWeight(1);
@@ -584,15 +588,8 @@ function drawHUD() {
   textAlign(LEFT);
   textFont("monospace");
   textStyle(NORMAL);
-  text(player.score, 20, 90);
-  text("Level " + (player.lvl + 1), 20, 110);
-
-  fill(0);
-  stroke(255);
-  strokeWeight(2);
-  rect(20, 54, 160, 10);
-  fill(255);
-  rect(20, 54, 160 * player.xp / player.lvlUp, 10);
+  text("Level " + (player.lvl + 1), 20, 90);
+  text(player.score.toLocaleString(), 20, 110);
 
   textSize(40);
   textAlign(CENTER);
@@ -686,7 +683,7 @@ function v(x, y) {
 }
 function astSplit(pos, dir, size, vel, dst) {
   explosions.push({ pos: pos.copy(), vel: vel.copy(), tick: 0, size: size / 3 });
-  world.setScreenshake(size / 10, size / 10, 0.1)
+  world.screenshake.set(size * screenshakeModifier, size * screenshakeModifier, 0.1)
   player.score += size > 35 ? 150 : (size > 25 ? 100 : 75);
   player.xp += size > 35 ? 2 : 1;
   if (size > 35 && random() > 0.5) {
