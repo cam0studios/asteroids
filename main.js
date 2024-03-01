@@ -33,7 +33,7 @@ if (!localStorage.getItem("highscore")) {
   localStorage.setItem("highscore", 0);
 }
 
-if(typeof JSON.parse(localStorage.getItem("highscore")) == "number") {
+if (typeof JSON.parse(localStorage.getItem("highscore")) != "object") {
   const highscoreNumber = parseInt(localStorage.getItem("highscore"))
   localStorage.setItem("highscore", JSON.stringify({
     kills: 0,
@@ -48,7 +48,7 @@ const upgrades = [
   { name: "Fire rate", f: () => player.reloadTime *= 0.85, weight: 0.8, description: "Shoot faster", max: 10 },
   { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "Increases your max health by 1", max: 5 },
   { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 },
-  { name: "Damage", f: () => player.dmg+=0.3, weight: 0.6, description: "Your bullets do more damage", max: 10 },
+  { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "Your bullets do more damage", max: 10 },
   // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 4}
 ];
 const pickupData = [
@@ -121,7 +121,7 @@ function setup() {
   world.pickups = [];
   asteroidSpawnTimer = 0;
   asteroidSpawnRate = 250;
-  asteroidSpeed = 2;
+  asteroidSpeed = 1.5;
   timer = 0;
   world.size = v(3000, 3000);
   size = v(innerWidth, innerHeight);
@@ -220,32 +220,20 @@ function draw() {
         player.hp += 1;
         levelUp = true;
       }
-      if(levelUp && levelUpgrades.length==0) {
-        let choices = [];
-        upgrades.forEach((e, i) => {
-          if(e.times<e.max) {
-            for (let n = 0; n < e.weight * 20; n++) {
-              choices.push({ name: e.name, f: e.f, description: e.description, i: i });
-            }
-          }
-        });
-        levelUpgrades = [];
-        for (let n = 0; n < 3; n++) {
-          let r = floor(random() * choices.length);
-          levelUpgrades.push(choices[r]);
-          choices = choices.filter(e => e.name != choices[r].name);
-        }
+      if (levelUp && levelUpgrades.length == 0) {
+        startLevelUp();
       }
       if ((keyIsDown(32) || mouseIsPressed) && player.reload <= 0) {
         let num = round(player.multishot);
         for (let i = 0; i < num; i++) {
           bullets.push({
             pos: player.pos.copy(),
-            vel: v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2),
+            vel: p5.Vector.add(player.vel,v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2)),
             dst: v(0, 0),
+            playerVel: player.vel.copy(),
             dmg: player.dmg * (0.7 / (1 + abs(i - (num - 1) / 2)) + 0.3)
           });
-          bullets[bullets.length - 1].pos.add(bullets[bullets.length - 1].vel);
+          bullets[bullets.length - 1].pos.add(p5.Vector.mult(p5.Vector.sub(bullets[bullets.length - 1].vel,player.vel),1.5));
         }
         player.reload = player.reloadTime;
       } else {
@@ -316,6 +304,7 @@ function draw() {
   }
   if (keyIsDown(27) && !pauseKey) {
     pause = !pause;
+    if (pause) pauseGame();
   }
   if (levelUp) {
     pause = false;
@@ -366,7 +355,7 @@ function draw() {
       });
       bullets.forEach((b) => {
         strokeWeight(player.projectileSize);
-        line(b.pos.x, b.pos.y, b.pos.x - b.vel.x, b.pos.y - b.vel.y);
+        line(b.pos.x, b.pos.y, b.pos.x - (b.vel.x - b.playerVel.x), b.pos.y - (b.vel.y - b.playerVel.y));
       });
       world.pickups.forEach((pickup, i) => {
         push();
@@ -416,22 +405,10 @@ function draw() {
 
   player.alive ? drawHUD() : drawDeathScreen()
 
-  if (pause || levelUp) {
-    fill("rgba(0, 0, 0, 0.5)");
-    noStroke();
-    rect(0, 0, size.x, size.y);
-
-    stroke(0);
-    strokeWeight(0);
-    pauseBtns = [];
-    if (pause) {
-      drawPauseMenu();
-    }
-    if (levelUp) {
-      drawLevelUpScreen();
-    }
-    oldBtns = pauseBtns;
+  if (pause) {
+    drawPauseMenu();
   }
+
   fill(255);
   stroke(255);
   strokeWeight(0.5);
@@ -476,10 +453,10 @@ function tickBullets() {
       asteroids.forEach((asteroid, ti) => {
         let baseDst = p5.Vector.sub(bullet.pos, asteroid.pos);
         let run = true;
-        for(let offX = -world.size.x; offX <= world.size.x; offX += world.size.x) {
-          for(let offY = -world.size.y; offY <= world.size.y; offY += world.size.y) {
-            if(run) {
-              let dst = p5.Vector.add(baseDst,v(offX,offY));
+        for (let offX = -world.size.x; offX <= world.size.x; offX += world.size.x) {
+          for (let offY = -world.size.y; offY <= world.size.y; offY += world.size.y) {
+            if (run) {
+              let dst = p5.Vector.add(baseDst, v(offX, offY));
               if (dst.mag() < asteroid.size / 2 + 10 + player.projectileSize * 1.2) {
                 bullets.splice(i, 1);
                 run = false;
@@ -526,43 +503,47 @@ function drawLevelUpScreen() {
 }
 
 function drawPauseMenu() {
-  button("Resume", 120, 0, 0, () => {
-    pause = false;
-  });
-  let controlLayouts = ["AD Turning", "Mouse + WASD"];
-  button(controlLayouts[prefers.controls], 210, 1, 0, () => {
-    prefers.controls++;
-    if (prefers.controls > controlLayouts.length - 1) {
-      prefers.controls -= controlLayouts.length;
+  document.getElementById("control").innerHTML = ["AD Turning", "Mouse + WASD"][prefers.controls];
+}
+function pauseGame() {
+  pause = true;
+  document.getElementById("pauseMenu").showModal();
+  document.getElementById("resume").addEventListener("click", () => { pause = false; document.getElementById("pauseMenu").close() });
+  document.getElementById("quit").addEventListener("click", () => { player.hp = 0; pause = false; document.getElementById("pauseMenu").close() });
+  document.getElementById("control").addEventListener("click", () => { prefers.controls++; if (prefers.controls > 1) prefers.controls -= 2 });
+  document.getElementById("pickupGuides").checked = prefers.showArrows;
+  document.getElementById("pickupGuides").addEventListener("input", () => { prefers.showArrows = document.getElementById("pickupGuides").checked });
+  document.getElementById("screenshake").checked = prefers.doScreenshake;
+  document.getElementById("screenshake").addEventListener("input", () => { prefers.doScreenshake = document.getElementById("screenshake").checked });
+}
+function startLevelUp() {
+  let choices = [];
+  upgrades.forEach((e, i) => {
+    if (e.times < e.max) {
+      for (let n = 0; n < e.weight * 20; n++) {
+        choices.push({ name: e.name, f: e.f, description: e.description, i: i });
+      }
     }
   });
-  
-  button("Quit", 500, 2, 0, () => {
-    player.hp = 0;
-    pause = false;
+  levelUpgrades = [];
+  if(choices.length>0) {
+    for (let n = 0; n < 3; n++) {
+      let r = floor(random() * choices.length);
+      levelUpgrades.push(choices[r]);
+      choices = choices.filter(e => e.i != choices[r].i);
+    }
+  } else {
+    levelUpgrades.push({name: "Next", f:() => player.score.other+=2000, description: "Adds 2000 xp", i:-1});
+  }
+  document.getElementById("levelUp").showModal();
+  document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => `<button id="levelUp${i}"><h2>${upgrade.name}</h2>${upgrade.description}<p></p></button>`).join("<br/>");
+  levelUpgrades.forEach((e, i) => {
+    document.getElementById("levelUp" + i).addEventListener("click", () => {
+      e.f();
+      levelUp = false;
+      document.getElementById("levelUp").close();
+    });
   });
-
-  button(prefers.showArrows ? "On" : "Off", 300, 3, 0, () => {
-    prefers.showArrows = !prefers.showArrows;
-  });
-
-  button(prefers.doScreenshake ? "On" : "Off", 390, 4, 0, () => {
-    prefers.doScreenshake = !prefers.doScreenshake;
-  });
-
-  textSize(40);
-  textAlign(CENTER);
-  textStyle(NORMAL);
-  textFont("monospace");
-  fill(255);
-  stroke(255);
-  strokeWeight(1);
-  text("Paused", size.x / 2, 100);
-
-  textSize(25);
-  text("Control Layout:", size.x / 2, 200);
-  text("Pickup Guides:", size.x / 2, 290);
-  text("Screenshake: ", size.x / 2, 380);
 }
 
 function drawDeathScreen() {
@@ -779,5 +760,5 @@ function button(txt, yPos, i, style, func, desc) {
   }
 }
 window.onblur = () => {
-  if (!levelUp) pause = true;
+  if (!levelUp) pauseGame();
 }

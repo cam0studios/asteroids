@@ -20,9 +20,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const TAG_ID = firebaseConfig.measurementId;
-window.log = (name, data) => {
-  logEvent(analytics, name, data);
-}
+//window.log = (name, data) => {
+//  logEvent(analytics, name, data);
+//}
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag("js", new Date());
