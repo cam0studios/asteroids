@@ -198,14 +198,16 @@ function draw() {
         player.lvl++;
         player.xp -= player.lvlUp;
         player.lvlUp += 5;
-        player.lvlUp *= 1.05;
+        player.lvlUp *= 1.1;
         player.score += 1000;
         player.hp += 1;
         levelUp = true;
         let choices = [];
         upgrades.forEach((e, i) => {
-          for (let n = 0; n < e.weight * 20; n++) {
-            choices.push({ name: e.name, f: e.f, description: e.description, i: i });
+          if(e.times<e.max) {
+            for (let n = 0; n < e.weight * 20; n++) {
+              choices.push({ name: e.name, f: e.f, description: e.description, i: i });
+            }
           }
         });
         levelUpgrades = [];
@@ -689,7 +691,7 @@ function astSplit(pos, dir, size, vel, dst) {
   if (size > 35 && random() > 0.5) {
     asteroidReload = 0;
   }
-  if (random() < (size / 100 - 0.2) * 100 / (timer + 200) + 0.01) {
+  if (random() < (size / 100 - 0.2) * 70 / (timer + 200) + 0.005) {
     let choices = [];
     pickupData.forEach((option, i) => {
       for (let n = 0; n < option.weight * 20; n++) choices.push(i);
