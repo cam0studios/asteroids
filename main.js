@@ -287,7 +287,7 @@ function draw() {
     tickBullets();
     explosions.forEach((e, i) => {
       e.tick += deltaTime * 0.03;
-      if (e.tick >= 2 + e.size / 4) {
+      if (e.tick >= 2 + e.size / 3) {
         explosions.splice(i, 1);
       }
     });
