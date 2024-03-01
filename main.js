@@ -508,7 +508,7 @@ function drawPauseMenu() {
     prefers.showArrows = !prefers.showArrows;
   });
 
-  button(prefers.doScreenshake ? "On" : "Off", 390, 3, 0, () => {
+  button(prefers.doScreenshake ? "On" : "Off", 390, 4, 0, () => {
     prefers.doScreenshake = !prefers.doScreenshake;
   });
 
