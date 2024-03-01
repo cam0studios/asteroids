@@ -102,6 +102,7 @@ function setup() {
   pause = false;
   pauseKey = false;
   levelUp = false;
+  levelUpgrades = [];
   pauseBtns = [];
   oldBtns = [];
   asteroids = [];
@@ -204,6 +205,8 @@ function draw() {
         player.score += 1000;
         player.hp += 1;
         levelUp = true;
+      }
+      if(levelUp && levelUpgrades.length==0) {
         let choices = [];
         upgrades.forEach((e, i) => {
           if(e.times<e.max) {
@@ -485,12 +488,14 @@ function drawLevelUpScreen() {
       e.f();
       upgrades[e.i].times++;
       levelUp = false;
+      levelUpgrades = [];
     }, e.description);
   });
   if (levelUpgrades.length == 0) {
     button("Next", 120, 0, 1, () => {
       levelUp = false;
       player.score += 2000;
+      levelUpgrades = [];
     }, "Adds 2000 xp");
   }
 }
