@@ -19,6 +19,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
+const TAG_ID = firebaseConfig.measurementId;
 window.log = (name, data) => {
   logEvent(analytics, name, data);
 }
@@ -26,4 +27,8 @@ window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag("js", new Date());
 
-gtag("config", "G-9T5F2J6T5D");
+gtag("config",TAG_ID);
+if (!localStorage.getItem("userId")) {
+  localStorage.setItem("userId",Date.now().toString()+Math.round(Math.random()*10000));
+}
+gtag("config",TAG_ID,{"user_id":localStorage.getItem("userId")});
