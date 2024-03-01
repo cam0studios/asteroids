@@ -458,15 +458,24 @@ function tickBullets() {
       bullet.pos.x = (bullet.pos.x + world.size.x / 2) % world.size.x - world.size.x / 2;
       bullet.pos.y = (bullet.pos.y + world.size.y / 2) % world.size.y - world.size.y / 2;
       asteroids.forEach((asteroid, ti) => {
-        let dst = p5.Vector.sub(bullet.pos, asteroid.pos);
-        if (dst.mag() < asteroid.size / 2 + 10 + player.projectileSize * 1.2) {
-          bullets.splice(i, 1);
-          i--;
-          asteroid.hp -= bullet.dmg;
-          if (asteroid.hp <= 0) {
-            astSplit(asteroid.pos.copy(), bullet.vel.heading(), asteroid.size, asteroid.vel.copy(), asteroid.size);
-            asteroids.splice(ti, 1);
-            ti--;
+        let baseDst = p5.Vector.sub(bullet.pos, asteroid.pos);
+        let run = true;
+        for(let offX = -world.size.x; offX <= world.size.x; offX += world.size.x) {
+          for(let offY = -world.size.y; offY <= world.size.y; offY += world.size.y) {
+            if(run) {
+              let dst = p5.Vector.add(baseDst,v(offX,offY));
+              if (dst.mag() < asteroid.size / 2 + 10 + player.projectileSize * 1.2) {
+                bullets.splice(i, 1);
+                run = false;
+                i--;
+                asteroid.hp -= bullet.dmg;
+                if (asteroid.hp <= 0) {
+                  astSplit(asteroid.pos.copy(), bullet.vel.heading(), asteroid.size, asteroid.vel.copy(), asteroid.size);
+                  asteroids.splice(ti, 1);
+                  ti--;
+                }
+              }
+            }
           }
         }
       });
