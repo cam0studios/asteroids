@@ -76,7 +76,7 @@ const pickupData = [
   {
     col: "rgb(230, 200, 50)",
     weight: 0.3,
-    collect: () => { player.score += Math.max(75, player.lvlUp / 10); player.xp += 35 },
+    collect: () => { player.score += Math.max(75, Math.floor(player.lvlUp / 10)); player.xp += 35 },
     draw: () => {
       fill("rgb(230, 200, 50)");
       stroke("rgb(200, 180, 40)");
