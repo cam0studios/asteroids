@@ -222,12 +222,11 @@ function draw() {
         for (let i = 0; i < num; i++) {
           bullets.push({
             pos: player.pos.copy(),
-            vel: p5.Vector.add(player.vel, v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2)),
+            vel: v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2),
             dst: v(0, 0),
-            playerVel: player.vel.copy(),
             dmg: 0.7 / (1 + abs(i - (num - 1) / 2)) + 0.3
           });
-          bullets[bullets.length - 1].pos.add(p5.Vector.sub(bullets[bullets.length - 1].vel, player.vel));
+          bullets[bullets.length - 1].pos.add(bullets[bullets.length - 1].vel);
         }
         player.reload = player.reloadTime;
       } else {
@@ -346,7 +345,7 @@ function draw() {
       });
       bullets.forEach((b) => {
         strokeWeight(player.projectileSize);
-        line(b.pos.x, b.pos.y, b.pos.x - (b.vel.x - b.playerVel.x), b.pos.y - (b.vel.y - b.playerVel.y));
+        line(b.pos.x, b.pos.y, b.pos.x - b.vel.x, b.pos.y - b.vel.y);
       });
       world.pickups.forEach((pickup, i) => {
         push();
