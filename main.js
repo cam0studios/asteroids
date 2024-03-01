@@ -106,7 +106,7 @@ function setup() {
   asteroidReloadTime = 250;
   asteroidSpeed = 2;
   timer = 0;
-  world.size = v(1500, 1500);
+  world.size = v(3000, 3000);
   size = v(innerWidth, innerHeight);
   if (size.x > world.size.x - 10) size.x = world.size.x - 10;
   if (size.y > world.size.y - 10) size.y = world.size.y - 10;
@@ -148,9 +148,9 @@ function draw() {
   if (!pause && !levelUp) {
     if (asteroidReload <= 0 && player.alive) {
       asteroidReload = asteroidReloadTime;
-      asteroidReloadTime *= 0.975;
-      if (asteroidReloadTime < 30) asteroidReloadTime = 30;
-      asteroidSpeed += 0.2;
+      asteroidReloadTime *= 0.925;
+      if (asteroidReloadTime < 20) asteroidReloadTime = 20;
+      asteroidSpeed += 0.005;
       asteroids.push({
         pos: p5.Vector.add(player.pos, v(size.x / 2, 0).rotate(random() * 2 * PI - PI)),
         vel: v(random() * asteroidSpeed + asteroidSpeed, 0).rotate(random() * 2 * PI - PI),
@@ -686,7 +686,7 @@ function v(x, y) {
 }
 function astSplit(pos, dir, size, vel, dst) {
   explosions.push({ pos: pos.copy(), vel: vel.copy(), tick: 0, size: size / 3 });
-  world.setScreenshake(size / 10, size / 10, 0.1)
+  world.setScreenshake(size / 6, size / 6, 0.1)
   player.score += size > 35 ? 150 : (size > 25 ? 100 : 75);
   player.xp += size > 35 ? 2 : 1;
   if (size > 35 && random() > 0.5) {
