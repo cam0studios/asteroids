@@ -503,6 +503,11 @@ function drawPauseMenu() {
       prefers.controls -= controlLayouts.length;
     }
   });
+  
+  button("Quit", 560, 2, 0, () => {
+    player.hp = 0;
+    pause = false;
+  });
 
   button(prefers.showArrows ? "On" : "Off", 300, 3, 0, () => {
     prefers.showArrows = !prefers.showArrows;
@@ -510,11 +515,6 @@ function drawPauseMenu() {
 
   button(prefers.doScreenshake ? "On" : "Off", 390, 4, 0, () => {
     prefers.doScreenshake = !prefers.doScreenshake;
-  });
-
-  button("Quit", 560, 2, 0, () => {
-    player.hp = 0;
-    pause = false;
   });
 
   textSize(40);
