@@ -512,7 +512,7 @@ function drawPauseMenu() {
     }
   });
   
-  button("Quit", 560, 2, 0, () => {
+  button("Quit", 500, 2, 0, () => {
     player.hp = 0;
     pause = false;
   });
