@@ -32,6 +32,16 @@ const screenshakeModifier = 0.225
 if (!localStorage.getItem("highscore")) {
   localStorage.setItem("highscore", 0);
 }
+
+if(typeof JSON.parse(localStorage.getItem("highscore")) == "number") {
+  const highscoreNumber = parseInt(localStorage.getItem("highscore"))
+  localStorage.setItem("highscore", JSON.stringify({
+    kills: 0,
+    pickups: 0,
+    other: highscoreNumber
+  }))
+}
+
 const upgrades = [
   { name: "Speed", f: () => player.speed += 0.2, weight: 1, description: "Your ship moves faster", max: 15 },
   { name: "Multishot", f: () => player.multishot += 1, weight: 0.3, description: "Shoot more bullets", max: 10 },
@@ -45,7 +55,7 @@ const pickupData = [
   {
     col: "rgb(220, 50, 0)",
     weight: 1,
-    collect: () => { player.hp++; player.score += 350; },
+    collect: () => { player.hp++; player.score.pickups += 350; },
     draw: () => {
       fill("rgb(220, 50, 0)");
       stroke("rgb(190, 40, 0)");
@@ -64,7 +74,7 @@ const pickupData = [
   {
     col: "rgb(50,150,250)",
     weight: 0.7,
-    collect: () => { player.shield = true; player.score += 350; },
+    collect: () => { player.shield = true; player.score.pickups += 350; },
     draw: () => {
       fill("rgb(50, 150, 250)");
       stroke("rgb(50, 130, 220)");
@@ -82,7 +92,7 @@ const pickupData = [
   {
     col: "rgb(230, 200, 50)",
     weight: 0.3,
-    collect: () => { player.score += 1000; player.xp += Math.max(75, Math.floor(player.lvlUp / 10)) },
+    collect: () => { player.score.pickups += 1000; player.xp += Math.max(75, Math.floor(player.lvlUp / 10)) },
     draw: () => {
       fill("rgb(230, 200, 50)");
       stroke("rgb(200, 180, 40)");
@@ -131,7 +141,11 @@ function setup() {
     maxHp: 5,
     alive: true,
     restart: false,
-    score: 0,
+    score: {
+      kills: 0,
+      pickups: 0,
+      other: 0
+    },
     iframe: 0,
     xp: 0,
     lvlUp: 50,
@@ -202,7 +216,7 @@ function draw() {
         player.xp -= player.lvlUp;
         player.lvlUp += 5;
         player.lvlUp *= 1.1;
-        player.score += 1000;
+        player.score.other += 1000;
         player.hp += 1;
         levelUp = true;
       }
@@ -242,7 +256,9 @@ function draw() {
         world.screenshake.set(8, 8, 1)
         explosions.push({ pos: player.pos.copy(), vel: player.vel.copy(), size: 20, tick: 0 });
         bullets = [];
-        if (player.score >= parseInt(localStorage.getItem("highscore"))) localStorage.setItem("highscore", player.score);
+
+        //https://stackoverflow.com/questions/16449295/how-to-sum-the-values-of-a-javascript-object
+        if (Object.values(player.score).reduce((a, b) => a + b, 0) >= Object.values(parseInt(localStorage.getItem("highscore"))).reduce((a, b) => a + b, 0)) localStorage.setItem("highscore", JSON.stringify(player.score));
       }
     }
 
@@ -503,7 +519,7 @@ function drawLevelUpScreen() {
   if (levelUpgrades.length == 0) {
     button("Next", 120, 0, 1, () => {
       levelUp = false;
-      player.score += 2000;
+      player.score.other += 2000;
       levelUpgrades = [];
     }, "Adds 2000 xp");
   }
@@ -559,12 +575,14 @@ function drawDeathScreen() {
   textSize(70);
   text("You Died", size.x / 2, size.y / 2 - 30);
   textSize(30);
-  if (player.score >= parseInt(localStorage.getItem("highscore"))) {
-    text("New highscore! " + player.score.toLocaleString(), size.x / 2, size.y / 2 + 20);
+  const fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
+  const fullHighscore = Object.values(JSON.parse(localStorage.getItem("highscore"))).reduce((a, b) => a + b, 0)
+  if (fullPlayerScore >= fullHighscore) {
+    text("New highscore! " + fullPlayerScore.toLocaleString(), size.x / 2, size.y / 2 + 20);
     text("Press space to restart", size.x / 2, size.y / 2 + 60);
   } else {
-    text("Your score: " + player.score.toLocaleString(), size.x / 2, size.y / 2 + 20);
-    text("Highscore: " + parseInt(localStorage.getItem("highscore")).toLocaleString(), size.x / 2, size.y / 2 + 60);
+    text("Your score: " + fullPlayerScore.toLocaleString(), size.x / 2, size.y / 2 + 20);
+    text("Highscore: " + fullHighscore.toLocaleString(), size.x / 2, size.y / 2 + 60);
     text("Press space to restart", size.x / 2, size.y / 2 + 100);
   }
   if (keyIsDown(32) && !player.restart) {
@@ -606,7 +624,7 @@ function drawHUD() {
   textFont("monospace");
   textStyle(NORMAL);
   text("Level " + (player.lvl + 1), 20, 90);
-  text(player.score.toLocaleString(), 20, 110);
+  text(Object.values(player.score).reduce((a, b) => a + b, 0).toLocaleString(), 20, 110);
 
   textSize(40);
   textAlign(CENTER);
@@ -701,7 +719,7 @@ function v(x, y) {
 function astSplit(pos, dir, size, vel, dst) {
   explosions.push({ pos: pos.copy(), vel: vel.copy(), tick: 0, size: size / 3 });
   world.screenshake.set(size * screenshakeModifier, size * screenshakeModifier, 0.1)
-  player.score += size > 35 ? 150 : (size > 25 ? 100 : 75);
+  player.score.kills += size > 35 ? 150 : (size > 25 ? 100 : 75);
   player.xp += size > 35 ? 2 : 1;
   if (size > 35 && random() > 0.5) {
     asteroidSpawnTimer = 0;
