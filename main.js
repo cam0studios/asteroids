@@ -1,8 +1,8 @@
 var asteroids,
   bullets,
   explosions,
-  asteroidReload,
-  asteroidReloadTime,
+  asteroidSpawnTimer,
+  asteroidSpawnRate,
   size,
   pause,
   pauseKey,
@@ -109,8 +109,8 @@ function setup() {
   bullets = [];
   explosions = [];
   world.pickups = [];
-  asteroidReload = 0;
-  asteroidReloadTime = 250;
+  asteroidSpawnTimer = 0;
+  asteroidSpawnRate = 250;
   asteroidSpeed = 2;
   timer = 0;
   world.size = v(3000, 3000);
@@ -155,10 +155,10 @@ function setup() {
 
 function draw() {
   if (!pause && !levelUp) {
-    if (asteroidReload <= 0 && player.alive) {
-      asteroidReload = asteroidReloadTime;
-      asteroidReloadTime *= 0.925;
-      if (asteroidReloadTime < 20) asteroidReloadTime = 20;
+    if (asteroidSpawnTimer <= 0 && player.alive) {
+      asteroidSpawnTimer = asteroidSpawnRate;
+      asteroidSpawnRate *= 0.925;
+      if (asteroidSpawnRate < 20) asteroidSpawnRate = 20;
       asteroidSpeed += 0.005;
       asteroids.push({
         pos: p5.Vector.add(player.pos, v(size.x / 2, 0).rotate(random() * 2 * PI - PI)),
@@ -166,7 +166,7 @@ function draw() {
         size: 40, hp: 2 + floor(timer / 300)
       });
     } else {
-      asteroidReload -= 0.03 * deltaTime;
+      asteroidSpawnTimer -= 0.03 * deltaTime;
     }
     player.pos.add(p5.Vector.mult(player.vel, deltaTime * 0.03));
     player.vel.mult(0.95);
@@ -704,7 +704,7 @@ function astSplit(pos, dir, size, vel, dst) {
   player.score += size > 35 ? 150 : (size > 25 ? 100 : 75);
   player.xp += size > 35 ? 2 : 1;
   if (size > 35 && random() > 0.5) {
-    asteroidReload = 0;
+    asteroidSpawnTimer = 0;
   }
   if (random() < (size / 100 - 0.2) * 70 / (timer + 200) + 0.005) {
     let choices = [];
