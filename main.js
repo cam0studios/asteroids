@@ -686,7 +686,7 @@ function v(x, y) {
 }
 function astSplit(pos, dir, size, vel, dst) {
   explosions.push({ pos: pos.copy(), vel: vel.copy(), tick: 0, size: size / 3 });
-  world.setScreenshake(size / 6, size / 6, 0.1)
+  world.setScreenshake(size / 10, size / 10, 0.1)
   player.score += size > 35 ? 150 : (size > 25 ? 100 : 75);
   player.xp += size > 35 ? 2 : 1;
   if (size > 35 && random() > 0.5) {
