@@ -49,6 +49,7 @@ const upgrades = [
   { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "Increases your max health by 1", max: 5 },
   { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 },
   { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "Your bullets do more damage", max: 10 },
+  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.05, description: "Your bullets home on targets!", max: 5 },
   // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 4}
 ];
 const pickupData = [
@@ -157,7 +158,9 @@ function setup() {
     shield: false,
     projectileSpeed: 15,
     projectileSize: 5,
-    dmg: 1
+    dmg: 1,
+    homing: 0,
+    homingRange: 80
   };
   frameRate(1000);
 
@@ -228,12 +231,12 @@ function draw() {
         for (let i = 0; i < num; i++) {
           bullets.push({
             pos: player.pos.copy(),
-            vel: p5.Vector.add(player.vel,v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2)),
+            vel: p5.Vector.add(player.vel, v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2)),
             dst: v(0, 0),
             playerVel: player.vel.copy(),
             dmg: player.dmg * (0.7 / (1 + abs(i - (num - 1) / 2)) + 0.3)
           });
-          bullets[bullets.length - 1].pos.add(p5.Vector.mult(p5.Vector.sub(bullets[bullets.length - 1].vel,player.vel),1.5));
+          bullets[bullets.length - 1].pos.add(p5.Vector.mult(p5.Vector.sub(bullets[bullets.length - 1].vel, player.vel), 1.5));
         }
         player.reload = player.reloadTime;
       } else {
@@ -467,6 +470,16 @@ function tickBullets() {
                   asteroids.splice(ti, 1);
                   ti--;
                 }
+              } else if (dst.mag() + asteroid.size / 2 < player.homingRange && player.homing > 0) {
+                let mag = dst.mag() + asteroid.size / 2;
+                dst.normalize();
+                dst.mult(player.homing / (mag + 200) * 100 + player.homing * 0.5);
+                mag = bullet.vel.mag();
+                bullet.vel.normalize();
+                bullet.vel.mult(mag - dst.mag());
+                bullet.vel.sub(dst);
+                bullet.vel.normalize();
+                bullet.vel.mult(mag);
               }
             }
           }
@@ -474,32 +487,6 @@ function tickBullets() {
       });
     }
   });
-}
-
-function drawLevelUpScreen() {
-  textSize(40);
-  textAlign(CENTER);
-  textStyle(NORMAL);
-  textFont("monospace");
-  fill(255);
-  stroke(255);
-  strokeWeight(1);
-  text("Level Up!", size.x / 2, 100);
-  levelUpgrades.forEach((e, i) => {
-    button(e.name, 120 + i * 65, i, 1, () => {
-      e.f();
-      upgrades[e.i].times++;
-      levelUp = false;
-      levelUpgrades = [];
-    }, e.description);
-  });
-  if (levelUpgrades.length == 0) {
-    button("Next", 120, 0, 1, () => {
-      levelUp = false;
-      player.score.other += 2000;
-      levelUpgrades = [];
-    }, "Adds 2000 xp");
-  }
 }
 
 function drawPauseMenu() {
@@ -520,20 +507,20 @@ function startLevelUp() {
   let choices = [];
   upgrades.forEach((e, i) => {
     if (e.times < e.max) {
-      for (let n = 0; n < e.weight * 20; n++) {
+      for (let n = 0; n < e.weight; n+=0.05) {
         choices.push({ name: e.name, f: e.f, description: e.description, i: i });
       }
     }
   });
   levelUpgrades = [];
-  if(choices.length>0) {
+  if (choices.length > 0) {
     for (let n = 0; n < 3; n++) {
       let r = floor(random() * choices.length);
       levelUpgrades.push(choices[r]);
       choices = choices.filter(e => e.i != choices[r].i);
     }
   } else {
-    levelUpgrades.push({name: "Next", f:() => player.score.other+=2000, description: "Adds 2000 xp", i:-1});
+    levelUpgrades.push({ name: "Next", f: () => player.score.other += 2000, description: "Adds 2000 xp", i: -1 });
   }
   document.getElementById("levelUp").showModal();
   document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => `<button id="levelUp${i}"><h2>${upgrade.name}</h2>${upgrade.description}<p></p></button>`).join("<br/>");
@@ -542,6 +529,8 @@ function startLevelUp() {
       e.f();
       levelUp = false;
       document.getElementById("levelUp").close();
+      upgrades[e.i].times++;
+      levelUpgrades = [];
     });
   });
 }
