@@ -2,8 +2,8 @@ document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.pre
 document.getElementById("deathDialog").addEventListener("cancel", (e) => e.preventDefault());
 
 const screenshakeModifier = 0.225,
-      defaultUsername = "Spaceman",
-      worldSize = 3000
+  defaultUsername = "Spaceman",
+  worldSize = 3000
 
 var asteroids,
   bullets,
@@ -35,7 +35,8 @@ var asteroids,
       }
     }
   },
-  username;
+  username,
+  bossFight;
 
 if (!localStorage.getItem("highscore")) {
   localStorage.setItem("highscore", 0);
@@ -203,7 +204,8 @@ const bosses = [
       vel: 0,    // speed in random direction
       size: 320,
       hp: 1024,
-      followPlayer: 0.5
+      followPlayer: 0.5,
+      chestItems: 5
     }
   } */
 ];
@@ -214,7 +216,7 @@ function setup() {
   });
 
   pause = false;
-  bossFight = false;
+  bossFight = 0;
   pauseKey = false;
   levelUp = false;
   levelUpgrades = [];
@@ -279,12 +281,11 @@ function draw() {
   clampTime = Math.min(deltaTime, 100);
 
   if (!pause && !levelUp) {
-    if (bossFight) {
+    if (bossFight>0) {
       if (asteroids.filter(e => e.boss && e.original).length == 0) {
-        bossFight = false;
+        bossFight = 0;
       }
-    }
-    else {
+    } else {
       if (asteroidSpawnTimer <= 0 && player.alive) {
         asteroidSpawnTimer = asteroidSpawnRate;
         asteroidSpawnRate *= 0.925;
@@ -299,26 +300,27 @@ function draw() {
       } else {
         asteroidSpawnTimer -= 0.03 * clampTime;
       }
-      if (player.alive) {
-        bosses.forEach((e) => {
-          if (timer >= e.time && timer <= e.time + 1) {
-            asteroids.push(e.data);
-            bossFight = true;
-            boss = asteroids[asteroids.length - 1];
-            boss.original = true;
-            boss.boss = true;
-            for (let key in boss) {
-              let prop = boss[key];
-              if (key == "pos" && typeof prop == "number") {
-                boss.pos = p5.Vector.add(player.pos, v(boss.pos, 0).rotate(random() * 2 * PI));
-              }
-              if (key == "vel" && typeof prop == "number") {
-                boss.vel = v(boss.vel, 0).rotate(random() * 2 * PI);
-              }
+    }
+    if (player.alive) {
+      bosses.forEach((e,i) => {
+        if (timer >= e.time && timer <= e.time + 1 && bossFight<i+1) {
+          asteroids.push(JSON.parse(JSON.stringify(e.data)));
+          bossFight = i+1;
+          boss = asteroids[asteroids.length - 1];
+          boss.original = true;
+          boss.boss = true;
+          boss.type = i;
+          for (let key in boss) {
+            let prop = boss[key];
+            if (key == "pos" && typeof prop == "number") {
+              boss.pos = p5.Vector.add(player.pos, v(boss.pos, 0).rotate(random() * 2 * PI));
+            }
+            if (key == "vel" && typeof prop == "number") {
+              boss.vel = v(boss.vel, 0).rotate(random() * 2 * PI);
             }
           }
-        });
-      }
+        }
+      });
     }
     player.pos.add(p5.Vector.mult(player.vel, clampTime * 0.03));
     player.vel.mult(0.95);
@@ -415,6 +417,7 @@ function draw() {
 
       if (player.alive) {
         let dst = p5.Vector.sub(e.pos, player.pos);
+        dst.add(e.closest);
         if (dst.mag() < e.size / 2 + 25 + player.shield * 10) {
           if (player.iframe <= 0) {
             if (player.shield) player.shield = false;
@@ -436,10 +439,12 @@ function draw() {
             i--;
           }
         } else if (e.followPlayer > 0) {
-          dst.add(e.closest);
           dst.normalize();
           dst.mult(e.followPlayer);
-          e.vel.sub(dst);
+          let mag = e.vel.mag();
+          e.vel.sub(p5.Vector.mult(dst,2));
+          e.vel.normalize();
+          e.vel.mult(mag+dst.mag());
         }
       }
     });
@@ -501,16 +506,29 @@ function draw() {
       strokeWeight(5);
       fill(0);
       asteroids.forEach((a) => {
-        push();
-        if (a.boss) {
-          stroke("rgb(255,150,150)");
-          fill("rgb(50,0,0)");
-        } else {
-          stroke(255);
-          fill(0);
+        let p = p5.Vector.sub(p5.Vector.add(a.pos, v(xOff, yOff)), player.pos);
+        if (p.x > -size.x / 2 - a.size / 2 && p.x < size.x / 2 + a.size / 2 && p.y > -size.y / 2 - a.size / 2 && p.y < size.y / 2 + a.size / 2) {
+          push();
+          if (a.followPlayer > 0) {
+            stroke("rgb(255,150,150)");
+            fill("rgba(100,0,0,0.5)");
+          } else {
+            stroke(255);
+            noFill();
+          }
+          ellipse(a.pos.x, a.pos.y, a.size, a.size);
+            if(a.boss) {
+            stroke(0);
+            fill(50);
+            strokeWeight(3);
+            let w = a.size+10;
+            rect(a.pos.x-w/2,a.pos.y+a.size/2+10,w,15);
+            let nw = w*a.hp/bosses[a.type].data.hp;
+            fill("rgb(250,50,0)");
+            rect(a.pos.x-w/2,a.pos.y+a.size/2+10,nw,15);
+          }
+          pop();
         }
-        ellipse(a.pos.x, a.pos.y, a.size, a.size);
-        pop();
         if (p5.Vector.sub(p5.Vector.add(a.pos, v(xOff, yOff)), player.pos).mag() < p5.Vector.sub(p5.Vector.add(a.pos, a.closest), player.pos).mag()) {
           a.closest = v(xOff, yOff);
         }
@@ -633,7 +651,7 @@ function tickBullets() {
               let baseDst = p5.Vector.sub(bullet.pos, asteroid.pos);
               let dst = p5.Vector.add(baseDst, v(offX, offY));
               if (dst.mag() < asteroid.size / 2 + 10 + player.projectileSize * 1.2) {
-                bullets.splice(i,1);
+                bullets.splice(i, 1);
                 run = false;
                 i--;
                 asteroid.hp -= bullet.dmg;
@@ -726,10 +744,16 @@ async function showDeathScreen() {
   const fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
   const fullHighscore = Object.values(JSON.parse(localStorage.getItem("highscore"))).reduce((a, b) => a + b, 0)
   const deathScreen = document.getElementById("deathDialog")
+  deathScreen.showModal();
+  deathScreen.querySelector("span").innerHTML = `
+    Your score: ${fullPlayerScore.toLocaleString()}<br>
+    Your Highscore: ${fullHighscore.toLocaleString()}<br>
+  `
+  document.getElementById("leaderboard").innerHTML = "loading...";
 
-
-  await submitScore(username, timer, player.score)
+  if(fullPlayerScore>1000) await submitScore(username, timer, player.score)
   const globalHighscores = await getScores();
+  document.getElementById("leaderboard").innerHTML = "";
   let i = 0
   globalHighscores.forEach(score => {
     i++;
@@ -743,17 +767,11 @@ async function showDeathScreen() {
 
   console.log(globalHighscores)
 
-  deathScreen.showModal();
   if (fullPlayerScore >= fullHighscore) {
     deathScreen.querySelector("span").innerHTML = `
       New Highscore! ${fullPlayerScore.toLocaleString()}<br>
     `
-  } else {
-    deathScreen.querySelector("span").innerHTML = `
-      Your score: ${fullPlayerScore.toLocaleString()}<br>
-      Your Highscore: ${fullHighscore.toLocaleString()}<br>
-    `
-  }
+  } 
 }
 
 function drawHUD() {
@@ -829,12 +847,14 @@ function drawHUD() {
     strokeWeight(5);
     fill(255);
     asteroids.forEach((e) => {
-      if (e.boss) {
+      if (e.followPlayer > 0) {
         fill("rgb(255,150,150)");
       } else {
         fill(255);
       }
-      ellipse(e.pos.x, e.pos.y, e.size, e.size);
+      let s = (e.size * 100) / (asteroids.length + 100);
+      if (e.boss) s = e.size * 2;
+      ellipse(e.pos.x, e.pos.y, s, s);
     });
     world.pickups.forEach((e) => {
       fill(pickupData[e.type].col);
@@ -896,16 +916,15 @@ function astSplit(a, dir) {
   player.xp += a.size > 35 ? 2 : 1;
   if (a.boss && a.original) {
     world.pickups.push({ type: 3, pos: a.pos });
-  }
-  if (a.size > 35 && random() < 0.5) {
-    asteroidSpawnTimer = 0;
-  }
-  if (random() < (a.size / 100 - 0.2) * 70 / (timer + 200) + 0.005) {
+  } else if (random() < (a.size / 100 - 0.2) * 70 / (timer + 200) + 0.005) {
     let choices = [];
     pickupData.forEach((option, i) => {
       for (let n = 0; n < option.weight * 20; n++) choices.push(i);
     });
     world.pickups.push({ type: choices[floor(random() * choices.length)], pos: a.pos });
+  }
+  if (a.size > 35 && random() < 0.5) {
+    asteroidSpawnTimer = 0;
   }
   if (a.size >= 25) {
     let num = a.boss ? 5 : 3;
@@ -915,7 +934,7 @@ function astSplit(a, dir) {
         vel: p5.Vector.add(a.vel, v(3, 0).rotate(dir + i)),
         size: a.size * (a.boss ? (3 / 5) : (3 / 4)),
         hp: round(a.size / (a.boss ? 20 : 25)) + floor(timer / 300) * 0.5,
-        boss: a.boss,
+        boss: false,
         followPlayer: a.followPlayer / 4 * 3,
         original: false
       });
