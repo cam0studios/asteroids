@@ -1,6 +1,10 @@
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
 document.getElementById("deathDialog").addEventListener("cancel", (e) => e.preventDefault());
 
+const screenshakeModifier = 0.225,
+      defaultUsername = "Spaceman",
+      worldSize = 3000
+
 var asteroids,
   bullets,
   explosions,
@@ -25,16 +29,13 @@ var asteroids,
       intensityY: 0,
       timeRemaining: 0,
       set: (x, y, time) => {
-        world.screenshake.intensityX = x
-        world.screenshake.intensityY = y
-        world.screenshake.timeRemaining = time
+        world.screenshake.intensityX = x;
+        world.screenshake.intensityY = y;
+        world.screenshake.timeRemaining = time;
       }
     }
   },
   username;
-
-const screenshakeModifier = 0.225,
-  defaultUsername = "Spaceman"
 
 if (!localStorage.getItem("highscore")) {
   localStorage.setItem("highscore", 0);
@@ -227,7 +228,7 @@ function setup() {
   asteroidSpawnRate = 250;
   asteroidSpeed = 1.5;
   timer = 0;
-  world.size = v(3000, 3000);
+  world.size = v(worldSize, worldSize);
   size = v(innerWidth, innerHeight);
   if (size.x > world.size.x - 10) size.x = world.size.x - 10;
   if (size.y > world.size.y - 10) size.y = world.size.y - 10;
