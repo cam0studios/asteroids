@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
+import { getFirestore, collection, addDoc, doc, getDocs, where, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js"
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -19,16 +20,38 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
+const db = getFirestore(app);
 const TAG_ID = firebaseConfig.measurementId;
+
+//gtag stuff
+window.dataLayer = window.dataLayer || [];
+function gtag() { dataLayer.push(arguments); }
+gtag("js", new Date());
+
+gtag("config", TAG_ID);
+if (!localStorage.getItem("userId")) {
+  localStorage.setItem("userId", Date.now().toString() + Math.round(Math.random() * 10000));
+}
+
+gtag("config", TAG_ID, { "user_id": localStorage.getItem("userId") });
+
+//firebase online leaderboards
+window.submitScore = async function(username, time, score) {
+  addDoc(collection(db, "highscores"), {
+    scoreData: score,
+    time,
+    username,
+    total: Object.values(player.score).reduce((a, b) => a + b, 0),
+    timestamp: serverTimestamp()
+
+  })
+}
+window.getScores = async function(scoreOffset) {
+  const querySnapshot = await getDocs(query(collection(db, "highscores"), orderBy("total", "desc"), limit(10)))
+  return querySnapshot
+}
+
+
 //window.log = (name, data) => {
 //  logEvent(analytics, name, data);
 //}
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag("js", new Date());
-
-gtag("config",TAG_ID);
-if (!localStorage.getItem("userId")) {
-  localStorage.setItem("userId",Date.now().toString()+Math.round(Math.random()*10000));
-}
-gtag("config",TAG_ID,{"user_id":localStorage.getItem("userId")});

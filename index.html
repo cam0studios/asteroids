@@ -4,41 +4,54 @@
 <head>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=TAG_ID"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script> -->
   <link rel="stylesheet" type="text/css" href="style.css">
   <meta charset="utf-8" />
   <title>Asteroids</title>
   <script src="firebase.js" type="module"></script>
+  <script src="p5.js"></script>
+  <script src="main.js" defer></script>
 </head>
 
 <body>
   <main>
   </main>
-  <script src="main.js"></script>
   <dialog id="pauseMenu">
     <h1>Paused</h1>
-    <button id="resume">Resume</button>
-    <br />
+    <button id="resume">Resume</button><br>
     <button id="quit">Quit</button>
     <h2>Control Layout:</h2>
-    <button id="control">Mouse + WASD</button>
-    <br />
+    <button id="control">Mouse + WASD</button><br>
     <label>
       <input type="checkbox" id="pickupGuides">
       Pickup Guides
-    </label>
-    <br />
+    </label><br>
     <label>
       <input type="checkbox" id="screenshake">
       Screenshake
-    </label>
+    </label><br>
+    <button onclick="changeUsername()">Change username</button>
   </dialog>
-  <dialog id="levelUp">
+  <dialog id="levelUpDialog">
     <h1>
       Level Up!
     </h1>
     <div id="choices"></div>
+  </dialog>
+  <dialog id="chestItems">
+    <h1>You Got:</h1>
+    <div id="upgradesGot"></div>
+    <button id="continue">Continue</button>
+  </dialog>
+  <dialog id="deathDialog">
+    <h1>You Died</h1>
+    <span>
+
+    </span>
+    <p>Press space to restart</p>
+    <div id="leaderboard">
+      
+    </div>
   </dialog>
 </body>
 

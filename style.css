@@ -24,24 +24,32 @@ dialog {
     font-size: 40px;
   }
 
-  &>h2, &>label, &>button {
+  &>h2,
+  &>label,
+  &>button {
     font-size: 20px;
   }
-  &>button, &>*>button {
+
+  &>button,
+  &>*>button {
     padding: 5px;
     margin: 5px;
-    border-radius:5px;
-    background-color: rgb(70,70,70);
+    border-radius: 5px;
+    background-color: rgb(70, 70, 70);
     color: white;
     font-family: monospace;
   }
-  &>button:hover, &>*>button:hover {
-    background-color: rgb(90,90,90);
+
+  &>button:hover,
+  &>*>button:hover {
+    background-color: rgb(90, 90, 90);
   }
+
   &>h2 {
     margin: 0px;
     margin-top: 5px;
   }
+
   &>p {
     font-size: 15px;
     margin: 5px;
@@ -55,8 +63,9 @@ dialog {
 #quit {
   background-color: rgb(150, 0, 0);
 }
+
 #quit:hover {
-  background-color: rgb(170,0,0);
+  background-color: rgb(170, 0, 0);
 }
 
 dialog::backdrop {
@@ -65,14 +74,34 @@ dialog::backdrop {
 
 #choices>button {
   width: 300px;
-  height: 80px;
+  height: 90px;
   margin-top: 0px;
+
   &>h2 {
     font-size: 25px;
     margin: 5px;
   }
+
   &>p {
     font-size: 15px;
-    margin: 5px;
+    margin: 3px;
+  }
+}
+#deathDialog {
+  & h1 {
+    font-size: 50px;
+  }
+  & p {
+    font-size: 30px;
+    margin-bottom: 50px;
+  }
+
+  & span {
+    font-size: 35px;
+  }
+
+  & #leaderboard {
+    font-size: 20px;
+    align-content: start;
   }
 }
