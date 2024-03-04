@@ -277,11 +277,6 @@ function setup() {
 function draw() {
   clampTime = Math.min(deltaTime, 100);
 
-  size.set(innerWidth, innerHeight);
-  if (size.x > world.size.x - 10) size.x = world.size.x - 10;
-  if (size.y > world.size.y - 10) size.y = world.size.y - 10;
-  resizeCanvas(size.x, size.y, true);
-
   if (!pause && !levelUp) {
     if (bossFight) {
       if (asteroids.filter(e => e.boss && e.original).length == 0) {
@@ -612,6 +607,13 @@ function draw() {
   pauseKey = keyIsDown(27);
 }
 
+addEventListener("resize", () => {
+  size.set(innerWidth, innerHeight);
+  if (size.x > world.size.x - 10) size.x = world.size.x - 10;
+  if (size.y > world.size.y - 10) size.y = world.size.y - 10;
+  resizeCanvas(size.x, size.y, true);
+});
+
 function tickBullets() {
   bullets.forEach((bullet, i) => {
     bullet.pos.add(p5.Vector.mult(bullet.vel, clampTime * 0.03));
@@ -622,21 +624,21 @@ function tickBullets() {
     } else {
       bullet.pos.x = (bullet.pos.x + world.size.x / 2) % world.size.x - world.size.x / 2;
       bullet.pos.y = (bullet.pos.y + world.size.y / 2) % world.size.y - world.size.y / 2;
-      asteroids.forEach((asteroid, ti) => {
-        let baseDst = p5.Vector.sub(bullet.pos, asteroid.pos);
-        let run = true;
-        for (let offX = -world.size.x; offX <= world.size.x; offX += world.size.x) {
-          for (let offY = -world.size.y; offY <= world.size.y; offY += world.size.y) {
+      let run = true;
+      for (let offX = -world.size.x; offX <= world.size.x; offX += world.size.x) {
+        for (let offY = -world.size.y; offY <= world.size.y; offY += world.size.y) {
+          asteroids.filter(asteroid => p5.Vector.sub(p5.Vector.add(bullet.pos, v(offX, offY)), asteroid.pos).mag() + asteroid.size / 2 < Math.max(player.homingRange, player.projectileSize * 1.2)).forEach((asteroid, ti) => {
             if (run) {
+              let baseDst = p5.Vector.sub(bullet.pos, asteroid.pos);
               let dst = p5.Vector.add(baseDst, v(offX, offY));
               if (dst.mag() < asteroid.size / 2 + 10 + player.projectileSize * 1.2) {
-                bullets.splice(i, 1);
+                bullets.splice(i,1);
                 run = false;
                 i--;
                 asteroid.hp -= bullet.dmg;
                 if (asteroid.hp <= 0) {
                   astSplit(asteroid, bullet.vel.heading());
-                  asteroids.splice(ti, 1);
+                  asteroids.splice(asteroids.indexOf(asteroid), 1);
                   ti--;
                 }
               } else if (dst.mag() + asteroid.size / 2 < player.homingRange && player.homing > 0) {
@@ -651,9 +653,9 @@ function tickBullets() {
                 bullet.vel.mult(mag);
               }
             }
-          }
+          });
         }
-      });
+      }
     }
   });
 }
