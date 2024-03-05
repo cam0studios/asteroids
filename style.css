@@ -60,11 +60,11 @@ dialog {
   }
 }
 
-#quit {
+.red {
   background-color: rgb(150, 0, 0);
 }
 
-#quit:hover {
+.red:hover {
   background-color: rgb(170, 0, 0);
 }
 

@@ -12,7 +12,6 @@ var asteroids,
   asteroidSpawnRate,
   size,
   pause,
-  pauseKey,
   pauseBtns,
   oldBtns,
   prefers = { controls: 1, showArrows: true, doScreenshake: true, minimap: true },
@@ -217,7 +216,6 @@ function setup() {
 
   pause = false;
   bossFight = 0;
-  pauseKey = false;
   levelUp = false;
   levelUpgrades = [];
   pauseBtns = [];
@@ -456,10 +454,6 @@ function draw() {
       }
     });
   }
-  if (keyIsDown(27) && !pauseKey) {
-    pause = !pause;
-    if (pause) pauseGame();
-  }
   if (levelUp) {
     pause = false;
     document.getElementById("pauseMenu").close();
@@ -623,7 +617,6 @@ function draw() {
   pop();
 
   player.restart = keyIsDown(32);
-  pauseKey = keyIsDown(27);
 }
 
 addEventListener("resize", () => {
@@ -683,15 +676,18 @@ function drawPauseMenu() {
   document.getElementById("control").innerHTML = ["AD Turning", "Mouse + WASD"][prefers.controls];
 }
 function pauseGame() {
-  pause = true;
-  document.getElementById("pauseMenu").showModal();
-  document.getElementById("resume").addEventListener("click", () => { pause = false; document.getElementById("pauseMenu").close() });
-  document.getElementById("quit").addEventListener("click", () => { player.hp = 0; pause = false; document.getElementById("pauseMenu").close() });
-  document.getElementById("control").addEventListener("click", () => { prefers.controls++; if (prefers.controls > 1) prefers.controls -= 2 });
-  [...document.getElementById("pauseMenu").querySelectorAll("label")].forEach(label => {
-    const checkbox = label.querySelector("input[type='checkbox']")
-    checkbox.checked = prefers[checkbox.id];
-  })
+  setTimeout(() => {
+    pause = true;
+    document.getElementById("pauseMenu").showModal();
+    document.getElementById("resume").addEventListener("click", () => { pause = false; document.getElementById("pauseMenu").close() });
+    document.getElementById("quit").addEventListener("click", () => { player.hp = 0; pause = false; document.getElementById("pauseMenu").close() });
+    document.getElementById("exit").addEventListener("click",() => noLoop());
+    document.getElementById("control").addEventListener("click", () => { prefers.controls++; if (prefers.controls > 1) prefers.controls -= 2 });
+    [...document.getElementById("pauseMenu").querySelectorAll("label")].forEach(label => {
+      const checkbox = label.querySelector("input[type='checkbox']")
+      checkbox.checked = prefers[checkbox.id];
+    })
+  },100);
 }
 
 [...document.getElementById("pauseMenu").querySelectorAll("label")].forEach(label => {
@@ -948,3 +944,9 @@ function astSplit(a, dir) {
 window.onblur = () => {
   if (!levelUp) pauseGame();
 }
+document.addEventListener("keydown",(e) => {
+  if(e.key=="Escape") {
+    pause = !pause;
+    if (pause) pauseGame();
+  }
+});
