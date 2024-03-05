@@ -283,7 +283,7 @@ function setup() {
 function draw() {
   clampTime = Math.min(deltaTime, 100);
 
-  if(frameCount<10) asteroidSpawnTimer = 0;
+  if (frameCount < 10) asteroidSpawnTimer = 0;
 
   if (!pause && !levelUp) {
     if (bossFight > 0) {
@@ -446,10 +446,7 @@ function draw() {
         } else if (e.followPlayer > 0) {
           dst.normalize();
           dst.mult(e.followPlayer);
-          let mag = e.vel.mag();
-          e.vel.sub(p5.Vector.mult(dst, 2));
-          e.vel.normalize();
-          e.vel.mult(mag + dst.mag());
+          e.vel.sub(dst);
         }
       }
     });
@@ -934,7 +931,7 @@ function astSplit(a, dir) {
   if (a.size > 35 && random() < 0.5) {
     asteroidSpawnTimer = 0;
   }
-  if (random() < (a.size / 100 - 0.2) * 5000 / (timer*timer + 10000) + 0.005 && !a.boss && !a.original) {
+  if (random() < (a.size / 100 - 0.2) * 5000 / (timer * timer + 10000) + 0.005 && !a.boss && !a.original) {
     let choices = [];
     pickupData.forEach((option, i) => {
       for (let n = 0; n < option.weight * 20; n++) choices.push(i);
