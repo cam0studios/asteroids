@@ -269,11 +269,11 @@ function setup() {
   frameRate(1000);
 
   // testing, all pickups
-  for (let j = 0; 10 > j++;) {
-    for (let i = 0; i < pickupData.length; i++) {
-      world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 50, -1000 + j * 50), type: i })
-    }
-  }
+  // for (let j = 0; 10 > j++;) {
+  //   for (let i = 0; i < pickupData.length; i++) {
+  //     world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 50, -1000 + j * 50), type: i })
+  //   }
+  // }
 
   window.onblur = () => {
     if (!levelUp) pauseGame();
@@ -943,7 +943,7 @@ function astSplit(a, dir) {
     asteroidSpawnTimer = 0;
   }
   if (a.size >= 25) {
-    let num = a.boss ? 3 : 2;
+    let num = a.boss ? 2 : 2;
     for (let i = -1; i <= 1; i += 2 / (num - 1)) {
       asteroids.push({
         pos: a.pos.copy(),
