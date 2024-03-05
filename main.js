@@ -133,10 +133,10 @@ const pickupData = [
         let r = floor(random() * upgrades.length);
         upgrades[r].f();
         upgrades[r].times++;
-        gotten.push(r);
+        gotten.push({name:upgrades[r].name,times:upgrades[r].times});
       }
       document.getElementById("chestItems").showModal();
-      document.getElementById("upgradesGot").innerHTML = gotten.map(e => `<h2>${upgrades[e].name} ${upgrades[e].times}</h2>`).join("");
+      document.getElementById("upgradesGot").innerHTML = gotten.map(e => `<h2>${e.name} ${e.times}</h2>`).join("");
       pause = true;
       document.getElementById("continue").addEventListener("click", () => {
         pause = false;
@@ -277,14 +277,14 @@ function setup() {
 
   window.onblur = () => {
     if (!levelUp) pauseGame();
-  }  
+  }
 }
 
 function draw() {
   clampTime = Math.min(deltaTime, 100);
 
   if (!pause && !levelUp) {
-    if (bossFight>0) {
+    if (bossFight > 0) {
       if (asteroids.filter(e => e.boss && e.original).length == 0) {
         bossFight = 0;
       }
@@ -305,10 +305,10 @@ function draw() {
       }
     }
     if (player.alive) {
-      bosses.forEach((e,i) => {
-        if (timer >= e.time && timer <= e.time + 1 && bossFight<i+1) {
+      bosses.forEach((e, i) => {
+        if (timer >= e.time && timer <= e.time + 1 && bossFight < i + 1) {
           asteroids.push(JSON.parse(JSON.stringify(e.data)));
-          bossFight = i+1;
+          bossFight = i + 1;
           boss = asteroids[asteroids.length - 1];
           boss.original = true;
           boss.boss = true;
@@ -445,9 +445,9 @@ function draw() {
           dst.normalize();
           dst.mult(e.followPlayer);
           let mag = e.vel.mag();
-          e.vel.sub(p5.Vector.mult(dst,2));
+          e.vel.sub(p5.Vector.mult(dst, 2));
           e.vel.normalize();
-          e.vel.mult(mag+dst.mag());
+          e.vel.mult(mag + dst.mag());
         }
       }
     });
@@ -516,15 +516,15 @@ function draw() {
             noFill();
           }
           ellipse(a.pos.x, a.pos.y, a.size, a.size);
-            if(a.boss) {
+          if (a.boss) {
             stroke(0);
             fill(50);
             strokeWeight(3);
-            let w = a.size+10;
-            rect(a.pos.x-w/2,a.pos.y+a.size/2+10,w,15);
-            let nw = w*a.hp/bosses[a.type].data.hp;
+            let w = a.size + 10;
+            rect(a.pos.x - w / 2, a.pos.y + a.size / 2 + 10, w, 15);
+            let nw = w * a.hp / bosses[a.type].data.hp;
             fill("rgb(250,50,0)");
-            rect(a.pos.x-w/2,a.pos.y+a.size/2+10,nw,15);
+            rect(a.pos.x - w / 2, a.pos.y + a.size / 2 + 10, nw, 15);
           }
           pop();
         }
@@ -624,7 +624,7 @@ function draw() {
   player.restart = keyIsDown(32);
 }
 
-function updateCanvasSize () {
+function updateCanvasSize() {
   size.set(innerWidth / resolution.value, innerHeight / resolution.value);
   if (size.x > world.size.x - 10) size.x = world.size.x - 10;
   if (size.y > world.size.y - 10) size.y = world.size.y - 10;
@@ -649,7 +649,7 @@ function tickBullets() {
       let run = true;
       for (let offX = -world.size.x; offX <= world.size.x; offX += world.size.x) {
         for (let offY = -world.size.y; offY <= world.size.y; offY += world.size.y) {
-          asteroids.filter(asteroid => p5.Vector.sub(p5.Vector.add(bullet.pos, v(offX, offY)), asteroid.pos).mag() + asteroid.size / 2 < Math.max(player.homingRange, player.projectileSize * 1.2)).forEach((asteroid, ti) => {
+          asteroids.filter(asteroid => p5.Vector.sub(p5.Vector.add(bullet.pos, v(offX, offY)), asteroid.pos).mag() < Math.max(player.homingRange, player.projectileSize * 1.2) + asteroid.size / 2).forEach((asteroid, ti) => {
             if (run) {
               let baseDst = p5.Vector.sub(bullet.pos, asteroid.pos);
               let dst = p5.Vector.add(baseDst, v(offX, offY));
@@ -690,20 +690,20 @@ function pauseGame() {
     pause = true;
 
     //drawing upgrades
-  const upgradeElement = document.querySelector("#upgrades");
+    const upgradeElement = document.querySelector("#upgrades");
 
-  upgradeElement.innerHTML = upgrades.map(upgrade => upgrade.times > 0?`${upgrade.name}: ${upgrade.times}/${upgrade.max}`:"").join("<br>")
+    upgradeElement.innerHTML = upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}` : "").join("<br>")
 
     document.getElementById("pauseMenu").showModal();
     document.getElementById("resume").addEventListener("click", () => { pause = false; document.getElementById("pauseMenu").close() });
     document.getElementById("quit").addEventListener("click", () => { player.hp = 0; pause = false; document.getElementById("pauseMenu").close() });
-    document.getElementById("exit").addEventListener("click",() => noLoop());
+    document.getElementById("exit").addEventListener("click", () => noLoop());
     document.getElementById("control").addEventListener("click", () => { prefers.controls++; if (prefers.controls > 1) prefers.controls -= 2 });
     [...document.getElementById("pauseMenu").querySelectorAll("label")].forEach(label => {
       const checkbox = label.querySelector("input[type='checkbox']")
       checkbox.checked = prefers[checkbox.id];
     })
-  },100);
+  }, 100);
 }
 
 [...document.getElementById("pauseMenu").querySelectorAll("label")].forEach(label => {
@@ -763,7 +763,7 @@ async function showDeathScreen() {
   `
   document.getElementById("leaderboard").innerHTML = "loading...";
 
-  if(fullPlayerScore>1000) await submitScore(username, timer, player.score)
+  if (fullPlayerScore > 1000) await submitScore(username, timer, player.score)
   const globalHighscores = await getScores();
   document.getElementById("leaderboard").innerHTML = "";
   let i = 0
@@ -783,7 +783,7 @@ async function showDeathScreen() {
     deathScreen.querySelector("span").innerHTML = `
       New Highscore! ${fullPlayerScore.toLocaleString()}<br>
     `
-  } 
+  }
 }
 
 function drawHUD() {
@@ -943,7 +943,7 @@ function astSplit(a, dir) {
     asteroidSpawnTimer = 0;
   }
   if (a.size >= 25) {
-    let num = a.boss ? 2 : 2;
+    let num = (a.boss ? 4 : 3) - floor(timer / 180);
     for (let i = -1; i <= 1; i += 2 / (num - 1)) {
       asteroids.push({
         pos: a.pos.copy(),
@@ -964,8 +964,8 @@ function astSplit(a, dir) {
 window.onblur = () => {
   if (!levelUp) pauseGame();
 }
-document.addEventListener("keydown",(e) => {
-  if(e.key=="Escape") {
+document.addEventListener("keydown", (e) => {
+  if (e.key == "Escape") {
     pause = !pause;
     if (pause) pauseGame();
   }
