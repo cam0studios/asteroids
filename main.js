@@ -133,7 +133,7 @@ const pickupData = [
         let r = floor(random() * upgrades.length);
         upgrades[r].f();
         upgrades[r].times++;
-        gotten.push({name:upgrades[r].name,times:upgrades[r].times});
+        gotten.push({ name: upgrades[r].name, times: upgrades[r].times });
       }
       document.getElementById("chestItems").showModal();
       document.getElementById("upgradesGot").innerHTML = gotten.map(e => `<h2>${e.name} ${e.times}</h2>`).join("");
@@ -283,6 +283,8 @@ function setup() {
 function draw() {
   clampTime = Math.min(deltaTime, 100);
 
+  if(frameCount<10) asteroidSpawnTimer = 0;
+
   if (!pause && !levelUp) {
     if (bossFight > 0) {
       if (asteroids.filter(e => e.boss && e.original).length == 0) {
@@ -295,8 +297,8 @@ function draw() {
         if (asteroidSpawnRate < 50) asteroidSpawnRate = 50;
         asteroidSpeed += 0.005;
         asteroids.push({
-          pos: p5.Vector.add(player.pos, v(size.x / 2, 0).rotate(random() * 2 * PI - PI)),
-          vel: v(random() * asteroidSpeed + asteroidSpeed, 0).rotate(random() * 2 * PI - PI),
+          pos: p5.Vector.add(player.pos, v(size.x / 2, 0).rotate(random() * 2 * PI)),
+          vel: v(random() * asteroidSpeed + asteroidSpeed, 0).rotate(random() * 2 * PI),
           size: 40, hp: 2 + floor(timer / 100),
           original: true
         });
@@ -932,7 +934,8 @@ function astSplit(a, dir) {
   if (a.size > 35 && random() < 0.5) {
     asteroidSpawnTimer = 0;
   }
-  if (random() < (a.size / 100 - 0.2) * 70 / (timer + 200) + 0.005) {
+  alert((a.size / 100 - 0.2) * 10000 / (timer*timer + 10000) + 0.005);
+  if (random() < (a.size / 100 - 0.2) * 5000 / (timer*timer + 10000) + 0.005 && !a.boss && !a.original) {
     let choices = [];
     pickupData.forEach((option, i) => {
       for (let n = 0; n < option.weight * 20; n++) choices.push(i);
@@ -943,7 +946,7 @@ function astSplit(a, dir) {
     asteroidSpawnTimer = 0;
   }
   if (a.size >= 25) {
-    let num = (a.boss ? 4 : 3) - floor(timer / 180);
+    let num = (a.boss ? 4 : 3) - (timer > 300 ? 1 : 0);
     for (let i = -1; i <= 1; i += 2 / (num - 1)) {
       asteroids.push({
         pos: a.pos.copy(),
@@ -962,7 +965,7 @@ function astSplit(a, dir) {
 }
 
 window.onblur = () => {
-  if (!levelUp) pauseGame();
+  if (!levelUp && !pause) pauseGame();
 }
 document.addEventListener("keydown", (e) => {
   if (e.key == "Escape") {

@@ -4,6 +4,7 @@ body {
   padding: 0;
   color: white;
   font-family: monospace;
+  background-color: black;
 }
 
 canvas {
