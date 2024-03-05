@@ -160,8 +160,8 @@ const bosses = [
   {
     time: 60,
     data: {
-      pos: 500,  // distance from player
-      vel: 0,    // speed in random direction
+      pos: 500,
+      vel: 0,
       size: 40,
       hp: 50,
       followPlayer: 0.02,
@@ -170,8 +170,8 @@ const bosses = [
   }, {
     time: 120,
     data: {
-      pos: 500,  // distance from player
-      vel: 0,    // speed in random direction
+      pos: 500,
+      vel: 0,
       size: 50,
       hp: 175,
       followPlayer: 0.05,
@@ -180,8 +180,8 @@ const bosses = [
   }, {
     time: 180,
     data: {
-      pos: 500,  // distance from player
-      vel: 0,    // speed in random direction
+      pos: 500,
+      vel: 0,
       size: 80,
       hp: 375,
       followPlayer: 0.1,
@@ -190,24 +190,24 @@ const bosses = [
   }, {
     time: 300,
     data: {
-      pos: 500,  // distance from player
-      vel: 0,    // speed in random direction
+      pos: 500,
+      vel: 0,
       size: 100,
       hp: 600,
       followPlayer: 0.3,
       chestItems: 4
     }
-  }, /* {
+  }, {
     time: 420,
     data: {
-      pos: 1500,  // distance from player
-      vel: 0,    // speed in random direction
+      pos: 500,
+      vel: 0,
       size: 320,
-      hp: 1024,
+      hp: 1000,
       followPlayer: 0.5,
       chestItems: 5
     }
-  } */
+  }
 ];
 
 function setup() {
@@ -950,7 +950,7 @@ function astSplit(a, dir) {
         vel: p5.Vector.add(a.vel, v(3, 0).rotate(dir + i)),
         size: a.size * (a.boss ? (3 / 5) : (3 / 4)),
         hp: round(a.size / (a.boss ? 20 : 25)) + floor(timer / 100) * 0.5,
-        boss: a.boss,
+        boss: false,
         followPlayer: a.followPlayer / 4 * 3,
         original: false
       });
