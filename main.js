@@ -934,7 +934,6 @@ function astSplit(a, dir) {
   if (a.size > 35 && random() < 0.5) {
     asteroidSpawnTimer = 0;
   }
-  alert((a.size / 100 - 0.2) * 10000 / (timer*timer + 10000) + 0.005);
   if (random() < (a.size / 100 - 0.2) * 5000 / (timer*timer + 10000) + 0.005 && !a.boss && !a.original) {
     let choices = [];
     pickupData.forEach((option, i) => {
