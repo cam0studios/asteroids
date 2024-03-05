@@ -9,6 +9,11 @@ body {
 canvas {
   display: block;
   cursor: none;
+  position: fixed;
+  left:50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transform-origin: top left;
 }
 
 dialog {
@@ -16,8 +21,6 @@ dialog {
   background-color: transparent;
   border: none;
   text-align: center;
-  top: 10px;
-  width: 100%;
   z-index: 2;
 
   &>h1 {
@@ -58,6 +61,22 @@ dialog {
   &:focus {
     outline: none;
   }
+}
+
+#upgrades {
+  display: block;
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  color: white;
+}
+
+#upgrades {
+  display: block;
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  color: white;
 }
 
 .red {
