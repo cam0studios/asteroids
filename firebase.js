@@ -37,6 +37,7 @@ gtag("config", TAG_ID, { "user_id": localStorage.getItem("userId") });
 
 //firebase online leaderboards
 window.submitScore = async function(username, time, score) {
+  let fullPlayerScore = fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
   if (fullPlayerScore > 1000 && fullPlayerScore < 100000000) {
     addDoc(collection(db, "highscores"), {
       scoreData: score,
