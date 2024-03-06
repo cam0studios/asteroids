@@ -1,3 +1,6 @@
+const version = "3.0.0"
+const pageTime = new Date()
+
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
 document.getElementById("deathDialog").addEventListener("cancel", (e) => e.preventDefault());
 const resolution = document.getElementById("resolution")
@@ -691,7 +694,7 @@ function pauseGame() {
     //drawing upgrades
     const upgradeElement = document.querySelector("#upgrades");
 
-    upgradeElement.innerHTML = upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}` : "").join("<br>")
+  upgradeElement.innerHTML = upgrades.map(upgrade => upgrade.times > 0?`${upgrade.name}: ${upgrade.times}/${upgrade.max}`:"").join("<br>") + `${version} (${pageTime.toLocaleDateString().replaceAll("/", ".")}.${pageTime.getHours()})`
 
     document.getElementById("pauseMenu").showModal();
     document.getElementById("resume").addEventListener("click", () => { pause = false; document.getElementById("pauseMenu").close() });
