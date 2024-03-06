@@ -765,7 +765,7 @@ async function showDeathScreen() {
   `
   document.getElementById("leaderboard").innerHTML = "loading...";
 
-  if (fullPlayerScore > 1000) await submitScore(username, timer, player.score)
+  await submitScore(username, timer, player.score)
   const globalHighscores = await getScores();
   document.getElementById("leaderboard").innerHTML = "";
   let i = 0

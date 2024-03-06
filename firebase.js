@@ -37,14 +37,15 @@ gtag("config", TAG_ID, { "user_id": localStorage.getItem("userId") });
 
 //firebase online leaderboards
 window.submitScore = async function(username, time, score) {
-  addDoc(collection(db, "highscores"), {
-    scoreData: score,
-    time,
-    username,
-    total: Object.values(player.score).reduce((a, b) => a + b, 0),
-    timestamp: serverTimestamp()
-
-  })
+  if (fullPlayerScore > 1000 && fullPlayerScore < 100000000) {
+    addDoc(collection(db, "highscores"), {
+      scoreData: score,
+      time,
+      username,
+      total: Object.values(player.score).reduce((a, b) => a + b, 0),
+      timestamp: serverTimestamp()
+    })
+}
 }
 window.getScores = async function(scoreOffset) {
   const querySnapshot = await getDocs(query(collection(db, "highscores"), orderBy("total", "desc"), limit(10)))
