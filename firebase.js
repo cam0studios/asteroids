@@ -49,7 +49,7 @@ window.submitScore = async function(username, time, score) {
   }
 }
 window.getScores = async function(scoreOffset) {
-  const querySnapshot = await getDocs(query(collection(db, "highscores"), orderBy("total", "desc"), limit(10)))
+  const querySnapshot = await getDocs(query(collection(db, "highscores"), orderBy("total", "desc"), limit(25)))
   return querySnapshot
 }
 
