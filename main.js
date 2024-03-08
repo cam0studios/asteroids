@@ -1,4 +1,4 @@
-const version = "3.2.3";
+const version = "3.2.4";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -232,7 +232,7 @@ function setup() {
 
   pause = false;
   bossFight = false;
-  maxFight = 0;
+  maxFight = -1;
   levelUp = false;
   levelUpgrades = [];
   pauseBtns = [];
@@ -244,7 +244,7 @@ function setup() {
   asteroidSpawnTimer = 0;
   asteroidSpawnRate = 250;
   asteroidSpeed = 1.5;
-  timer = 60;
+  timer = 0;
   world.size = v(worldSize, worldSize);
   size = v(innerWidth / resolution.value, innerHeight / resolution.value);
   if (size.x > world.size.x - 10) size.x = world.size.x - 10;
@@ -448,7 +448,7 @@ function draw() {
             player.iframe = 10;
           }
           dst = dst.normalize();
-          dst.mult(e.size/2 + 15);
+          dst.mult(e.size/2 + 25);
           e.pos = player.pos.copy();
           e.pos.add(dst);
           e.vel.sub(player.vel);
