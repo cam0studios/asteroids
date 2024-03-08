@@ -1,9 +1,9 @@
-const version = "3.2.1"
-const pageTime = new Date()
+const version = "3.2.2";
+const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
 document.getElementById("deathDialog").addEventListener("cancel", (e) => e.preventDefault());
-const resolution = document.getElementById("resolution")
+const resolution = document.getElementById("resolution");
 
 const screenshakeModifier = 0.225,
   defaultUsername = "Spaceman",
@@ -14,6 +14,7 @@ var asteroids,
   explosions,
   asteroidSpawnTimer,
   asteroidSpawnRate,
+  asteroidSpeed,
   size,
   pause,
   pauseBtns,
@@ -205,10 +206,20 @@ const bosses = [
     data: {
       pos: 500,
       vel: 0,
-      size: 320,
+      size: 150,
       hp: 1000,
-      followPlayer: 0.5,
+      followPlayer: 0.3,
       chestItems: 5
+    }
+  }, {
+    time: 600,
+    data: {
+      pos: 1000,
+      vel: 0,
+      size: 350,
+      hp: 2000,
+      followPlayer: 0.7,
+      chestItems: 7
     }
   }
 ];
@@ -311,7 +322,7 @@ function draw() {
     }
     if (player.alive) {
       bosses.forEach((e, i) => {
-        if (timer >= e.time && timer <= e.time + 1 && bossFight < i + 1) {
+        if (timer >= e.time && bossFight < i + 1) {
           asteroids.push(JSON.parse(JSON.stringify(e.data)));
           bossFight = i + 1;
           boss = asteroids[asteroids.length - 1];
@@ -431,10 +442,10 @@ function draw() {
             if (player.shield) player.shield = false;
             else player.hp--;
             e.hp--;
+            player.iframe = 10;
           }
-          player.iframe = 10;
           dst = dst.normalize();
-          dst.mult(e.size + 15);
+          dst.mult(e.size/2 + 15);
           e.pos = player.pos.copy();
           e.pos.add(dst);
           e.vel.sub(player.vel);
@@ -506,7 +517,7 @@ function draw() {
       stroke(255);
       strokeWeight(5);
       fill(0);
-      asteroids.forEach((a) => {
+      asteroids.sort((a,b) => a.size-b.size).forEach((a) => {
         let p = p5.Vector.sub(p5.Vector.add(a.pos, v(xOff, yOff)), player.pos);
         if (p.x > -size.x / 2 - a.size / 2 && p.x < size.x / 2 + a.size / 2 && p.y > -size.y / 2 - a.size / 2 && p.y < size.y / 2 + a.size / 2) {
           push();
