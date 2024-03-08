@@ -244,7 +244,7 @@ function setup() {
   asteroidSpawnTimer = 0;
   asteroidSpawnRate = 250;
   asteroidSpeed = 1.5;
-  timer = 0;
+  timer = 60;
   world.size = v(worldSize, worldSize);
   size = v(innerWidth / resolution.value, innerHeight / resolution.value);
   if (size.x > world.size.x - 10) size.x = world.size.x - 10;
@@ -324,7 +324,7 @@ function draw() {
     }
     if (player.alive) {
       bosses.forEach((e, i) => {
-        if (timer >= e.time && maxFight < i + 1) {
+        if (timer >= e.time && maxFight < i) {
           asteroids.push(JSON.parse(JSON.stringify(e.data)));
           bossFight = true;
           maxFight = i;
