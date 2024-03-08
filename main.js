@@ -1,4 +1,4 @@
-const version = "3.2.2";
+const version = "3.2.3";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -40,6 +40,7 @@ var asteroids,
     }
   },
   username,
+  maxFight,
   bossFight;
 
 if (!localStorage.getItem("highscore")) {
@@ -230,7 +231,8 @@ function setup() {
   });
 
   pause = false;
-  bossFight = 0;
+  bossFight = false;
+  maxFight = 0;
   levelUp = false;
   levelUpgrades = [];
   pauseBtns = [];
@@ -300,9 +302,9 @@ function draw() {
   if (frameCount < 10) asteroidSpawnTimer = 0;
 
   if (!pause && !levelUp) {
-    if (bossFight > 0) {
+    if (bossFight) {
       if (asteroids.filter(e => e.boss && e.original).length == 0) {
-        bossFight = 0;
+        bossFight = false;
       }
     } else {
       if (asteroidSpawnTimer <= 0 && player.alive) {
@@ -322,9 +324,10 @@ function draw() {
     }
     if (player.alive) {
       bosses.forEach((e, i) => {
-        if (timer >= e.time && bossFight < i + 1) {
+        if (timer >= e.time && maxFight < i + 1) {
           asteroids.push(JSON.parse(JSON.stringify(e.data)));
-          bossFight = i + 1;
+          bossFight = true;
+          maxFight = i;
           boss = asteroids[asteroids.length - 1];
           boss.original = true;
           boss.boss = true;
