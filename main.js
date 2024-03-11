@@ -1,4 +1,4 @@
-const version = "3.2.4";
+const version = "3.3.0";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -131,14 +131,20 @@ const pickupData = [
   }, {
     col: "rgb(190, 170, 40)",
     weight: 0,
-    collect: () => {
-      player.score.other += 10000
+    collect: (e) => {
+      player.score.other += 10000;
       let gotten = [];
-      for (let i = 0; i < 2; i++) {
-        let r = floor(random() * upgrades.length);
-        upgrades[r].f();
-        upgrades[r].times++;
-        gotten.push({ name: upgrades[r].name, times: upgrades[r].times });
+      for (let i = 0; i < e.amount; i++) {
+        let choices = upgrades.map((u, i) => { return { e: u, i: i } }).filter(u => u.e.times < u.e.max).map(u => u.i);
+        if (choices.length > 0) {
+          let choice = choices[floor(random() * choices.length)];
+          upgrades[choice].f();
+          upgrades[choice].times++;
+          gotten.push({ name: upgrades[choice].name, times: upgrades[choice].times });
+        } else {
+          gotten.push({ name: "XP", times: 0 });
+          player.score.other += 2000;
+        }
       }
       document.getElementById("chestItems").showModal();
       document.getElementById("upgradesGot").innerHTML = gotten.map(e => `<h2>${e.name} ${e.times}</h2>`).join("");
@@ -170,7 +176,7 @@ const bosses = [
       size: 40,
       hp: 50,
       followPlayer: 0.02,
-      chestItems: 2
+      chestItems: 1
     }
   }, {
     time: 120,
@@ -190,7 +196,7 @@ const bosses = [
       size: 80,
       hp: 375,
       followPlayer: 0.1,
-      chestItems: 3
+      chestItems: 2
     }
   }, {
     time: 300,
@@ -200,7 +206,7 @@ const bosses = [
       size: 100,
       hp: 600,
       followPlayer: 0.3,
-      chestItems: 4
+      chestItems: 3
     }
   }, {
     time: 420,
@@ -210,7 +216,7 @@ const bosses = [
       size: 150,
       hp: 1000,
       followPlayer: 0.3,
-      chestItems: 5
+      chestItems: 4
     }
   }, {
     time: 600,
@@ -220,7 +226,27 @@ const bosses = [
       size: 350,
       hp: 2000,
       followPlayer: 0.7,
-      chestItems: 7
+      chestItems: 5
+    }
+  }, {
+    time: 720,
+    data: {
+      pos: 1000,
+      vel: 0,
+      size: 350,
+      hp: 3000,
+      followPlayer: 0.7,
+      chestItems: 5
+    }
+  }, {
+    time: 900,
+    data: {
+      pos: 1000,
+      vel: 0,
+      size: 500,
+      hp: 5000,
+      followPlayer: 2.5,
+      chestItems: 6
     }
   }
 ];
@@ -448,7 +474,7 @@ function draw() {
             player.iframe = 10;
           }
           dst = dst.normalize();
-          dst.mult(e.size/2 + 25);
+          dst.mult(e.size / 2 + 25);
           e.pos = player.pos.copy();
           e.pos.add(dst);
           e.vel.sub(player.vel);
@@ -520,7 +546,7 @@ function draw() {
       stroke(255);
       strokeWeight(5);
       fill(0);
-      asteroids.sort((a,b) => a.size-b.size).forEach((a) => {
+      asteroids.sort((a, b) => a.size - b.size).forEach((a) => {
         let p = p5.Vector.sub(p5.Vector.add(a.pos, v(xOff, yOff)), player.pos);
         if (p.x > -size.x / 2 - a.size / 2 && p.x < size.x / 2 + a.size / 2 && p.y > -size.y / 2 - a.size / 2 && p.y < size.y / 2 + a.size / 2) {
           push();
@@ -560,7 +586,7 @@ function draw() {
         let pos = p5.Vector.add(pickup.pos, v(xOff, yOff));
         if (p5.Vector.sub(pos, player.pos).mag() <= 50) {
           world.pickups.splice(i, 1);
-          pickupData[pickup.type].collect();
+          pickupData[pickup.type].collect(pickup);
         }
         if (p5.Vector.sub(pos, player.pos).mag() < p5.Vector.sub(p5.Vector.add(pickup.pos, pickup.closest), player.pos).mag()) {
           pickup.closest = v(xOff, yOff);
@@ -708,7 +734,7 @@ function pauseGame() {
     //drawing upgrades
     const upgradeElement = document.querySelector("#upgrades");
 
-  upgradeElement.innerHTML = upgrades.map(upgrade => upgrade.times > 0?`${upgrade.name}: ${upgrade.times}/${upgrade.max}`:"").join("<br>") + `${version} (${pageTime.toLocaleDateString().replaceAll("/", ".")}.${pageTime.getHours()})`
+    upgradeElement.innerHTML = upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}` : "").join("<br>") + `<br>${version} (${pageTime.toLocaleDateString().replaceAll("/", ".")}.${pageTime.getHours()})`
 
     document.getElementById("pauseMenu").showModal();
     document.getElementById("resume").addEventListener("click", () => { pause = false; document.getElementById("pauseMenu").close() });
@@ -730,42 +756,38 @@ function pauseGame() {
 })
 
 function startLevelUp() {
-  try {
-    let choices = [];
-    upgrades.forEach((e, i) => {
-      if (e.times < e.max) {
-        for (let n = 0; n < e.weight; n += 0.05) {
-          choices.push({ name: e.name, f: e.f, description: e.description, i: i });
-        }
+  let choices = [];
+  upgrades.forEach((e, i) => {
+    console.log(e.name + " - " + e.times + "/" + e.max);
+    if (e.times < e.max) {
+      for (let n = 0; n < e.weight; n += 0.05) {
+        choices.push({ name: e.name, f: e.f, description: e.description, i: i });
       }
-    });
-    levelUpgrades = [];
-    if (choices.length > 0) {
-      for (let n = 0; n < 3; n++) {
+    }
+  });
+  levelUpgrades = [];
+  if (choices.length > 0) {
+    for (let n = 0; n < 3; n++) {
+      if(choices.length>0) {
         let r = floor(random() * choices.length);
         levelUpgrades.push(choices[r]);
         choices = choices.filter(e => e.i != choices[r].i);
       }
-    } else {
-      levelUpgrades.push({ name: "Next", f: () => player.score.other += 2000, description: "Adds 2000 xp", i: -1 });
     }
-    document.getElementById("levelUpDialog").showModal();
-    try {
-      document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => `<button id="levelUp${i}"><h2>${upgrade.name}</h2><p>${upgrade.description}</p><p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p></button>`).join("<br/>");
-    } catch (e) { }
-    levelUpgrades.forEach((e, i) => {
-      document.getElementById("levelUp" + i).addEventListener("click", () => {
-        e.f();
-        levelUp = false;
-        document.getElementById("levelUpDialog").close();
-        upgrades[e.i].times++;
-        levelUpgrades = [];
-      });
-    });
-  } catch (error) {
-    console.error(error)
+  } else {
+    levelUpgrades.push({ name: "Next", f: () => player.score.other += 2000, description: "Adds 2000 xp", i: -1, times: 0, max: 0 });
   }
-
+  document.getElementById("levelUpDialog").showModal();
+  document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => `<button id="levelUp${i}"><h2>${upgrade.name}</h2><p>${upgrade.description}</p><p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p></button>`).join("<br/>");
+  levelUpgrades.forEach((e, i) => {
+    document.getElementById("levelUp" + i).addEventListener("click", () => {
+      e.f();
+      levelUp = false;
+      document.getElementById("levelUpDialog").close();
+      upgrades[e.i].times++;
+      levelUpgrades = [];
+    });
+  });
 }
 
 async function showDeathScreen() {
@@ -948,7 +970,7 @@ function astSplit(a, dir) {
   if (a.size > 35 && random() < 0.5) {
     asteroidSpawnTimer = 0;
   }
-  if (random() < (a.size / 100 - 0.2) * 0.2 * Math.pow(120,1.5) / Math.pow(timer+120,1.5) + 0.005 && !a.boss && !a.original) {
+  if (random() < (a.size / 100 - 0.2) * 0.2 * Math.pow(120, 1.5) / Math.pow(timer + 120, 1.5) + 0.005 && !a.boss && !a.original) {
     let choices = [];
     pickupData.forEach((option, i) => {
       for (let n = 0; n < option.weight * 20; n++) choices.push(i);
