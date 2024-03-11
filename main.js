@@ -142,7 +142,7 @@ const pickupData = [
           upgrades[choice].times++;
           gotten.push({ name: upgrades[choice].name, times: upgrades[choice].times });
         } else {
-          gotten.push({ name: "XP", times: 0 });
+          gotten.push({ name: "XP", times: 2000 });
           player.score.other += 2000;
         }
       }
@@ -176,7 +176,7 @@ const bosses = [
       size: 40,
       hp: 50,
       followPlayer: 0.02,
-      chestItems: 1
+      chestItems: 2
     }
   }, {
     time: 120,
@@ -196,7 +196,7 @@ const bosses = [
       size: 80,
       hp: 375,
       followPlayer: 0.1,
-      chestItems: 2
+      chestItems: 3
     }
   }, {
     time: 300,
@@ -325,7 +325,7 @@ function setup() {
 function draw() {
   clampTime = Math.min(deltaTime, 100);
 
-  if (frameCount < 10) asteroidSpawnTimer = 0;
+  if (frameCount < 15) asteroidSpawnTimer = 0;
 
   if (!pause && !levelUp) {
     if (bossFight) {
@@ -445,9 +445,9 @@ function draw() {
     asteroids.forEach((e, i) => {
       if (!Object.hasOwn(e, "boss")) e.boss = false;
       if (!Object.hasOwn(e, "closest")) e.closest = v(0, 0);
-      if (e.vel.mag() > 10) {
+      if (e.vel.mag() > 10+e.followPlayer*10) {
         e.vel.normalize();
-        e.vel.mult(10);
+        e.vel.mult(10+e.followPlayer*10);
       }
       e.pos.add(e.vel);
       if (e.pos.x > world.size.x / 2) {
@@ -538,14 +538,35 @@ function draw() {
       push();
       translate(xOff, yOff);
       explosions.forEach((e, i) => {
-        fill(255);
-        stroke(255);
+        fill(230);
         stroke(200);
+        strokeWeight(e.size*0.1);
         ellipse(e.pos.x, e.pos.y, e.tick * e.size, e.tick * e.size);
       });
+      pop();
+    }
+  }
+  for (let xOff = -world.size.x; xOff <= world.size.x; xOff += world.size.x) {
+    for (let yOff = -world.size.y; yOff <= world.size.y; yOff += world.size.y) {
+      push();
+      translate(xOff, yOff);
       stroke(255);
       strokeWeight(5);
       fill(0);
+      world.pickups.forEach((pickup, i) => {
+        push();
+        translate(pickup.pos);
+        pickupData[pickup.type].draw();
+        pop();
+        let pos = p5.Vector.add(pickup.pos, v(xOff, yOff));
+        if (p5.Vector.sub(pos, player.pos).mag() <= 50) {
+          world.pickups.splice(i, 1);
+          pickupData[pickup.type].collect(pickup);
+        }
+        if (p5.Vector.sub(pos, player.pos).mag() < p5.Vector.sub(p5.Vector.add(pickup.pos, pickup.closest), player.pos).mag()) {
+          pickup.closest = v(xOff, yOff);
+        }
+      });
       asteroids.sort((a, b) => a.size - b.size).forEach((a) => {
         let p = p5.Vector.sub(p5.Vector.add(a.pos, v(xOff, yOff)), player.pos);
         if (p.x > -size.x / 2 - a.size / 2 && p.x < size.x / 2 + a.size / 2 && p.y > -size.y / 2 - a.size / 2 && p.y < size.y / 2 + a.size / 2) {
@@ -555,7 +576,7 @@ function draw() {
             fill("rgba(100,0,0,0.5)");
           } else {
             stroke(255);
-            noFill();
+            fill("rgba(0,0,0,0.5)");
           }
           ellipse(a.pos.x, a.pos.y, a.size, a.size);
           if (a.boss) {
@@ -577,20 +598,6 @@ function draw() {
       bullets.forEach((b) => {
         strokeWeight(player.projectileSize);
         line(b.pos.x, b.pos.y, b.pos.x - (b.vel.x - b.playerVel.x), b.pos.y - (b.vel.y - b.playerVel.y));
-      });
-      world.pickups.forEach((pickup, i) => {
-        push();
-        translate(pickup.pos);
-        pickupData[pickup.type].draw();
-        pop();
-        let pos = p5.Vector.add(pickup.pos, v(xOff, yOff));
-        if (p5.Vector.sub(pos, player.pos).mag() <= 50) {
-          world.pickups.splice(i, 1);
-          pickupData[pickup.type].collect(pickup);
-        }
-        if (p5.Vector.sub(pos, player.pos).mag() < p5.Vector.sub(p5.Vector.add(pickup.pos, pickup.closest), player.pos).mag()) {
-          pickup.closest = v(xOff, yOff);
-        }
       });
       pop();
     }
@@ -775,16 +782,17 @@ function startLevelUp() {
       }
     }
   } else {
-    levelUpgrades.push({ name: "Next", f: () => player.score.other += 2000, description: "Adds 2000 xp", i: -1, times: 0, max: 0 });
+    levelUpgrades.push({ name: "XP", f: () => {player.score.other += 2000}, description: "Adds 2000 xp", i: -1 });
+    levelUpgrades.push({ name: "Health", f: () => {player.hp+=1}, description: "Restores 1 additional health", i: -1 });
   }
   document.getElementById("levelUpDialog").showModal();
-  document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => `<button id="levelUp${i}"><h2>${upgrade.name}</h2><p>${upgrade.description}</p><p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p></button>`).join("<br/>");
+  document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => `<button id="levelUp${i}"><h2>${upgrade.name}</h2><p>${upgrade.description}</p>${upgrade.i>-1?`<p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p>`:""}</button>`).join("<br/>");
   levelUpgrades.forEach((e, i) => {
     document.getElementById("levelUp" + i).addEventListener("click", () => {
+      if(e.i>-1) upgrades[e.i].times++;
       e.f();
       levelUp = false;
       document.getElementById("levelUpDialog").close();
-      upgrades[e.i].times++;
       levelUpgrades = [];
     });
   });
