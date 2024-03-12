@@ -41,6 +41,7 @@ var asteroids,
   },
   username,
   maxFight,
+  tick,
   bossFight;
 
 if (!localStorage.getItem("highscore")) {
@@ -255,7 +256,7 @@ function setup() {
   upgrades.forEach((e) => {
     e.times = 0;
   });
-
+  tick = 0;
   pause = false;
   bossFight = false;
   maxFight = -1;
@@ -324,8 +325,9 @@ function setup() {
 
 function draw() {
   clampTime = Math.min(deltaTime, 100);
+  tick++;
 
-  if (frameCount < 15) asteroidSpawnTimer = 0;
+  if (tick < 15) asteroidSpawnTimer = 0;
 
   if (!pause && !levelUp) {
     if (bossFight) {

@@ -39,7 +39,7 @@ gtag("config", TAG_ID, { "user_id": localStorage.getItem("userId") });
 window.submitScore = async function(username, time, score, version) {
   let fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
   if (fullPlayerScore > 10000 && fullPlayerScore < 100000000) {
-    addDoc(collection(db, "highscores"), {
+    addDoc(collection(db, "highscores2"), {
       scoreData: score,
       time,
       username,
@@ -50,7 +50,7 @@ window.submitScore = async function(username, time, score, version) {
   }
 }
 window.getScores = async function(scoreOffset) {
-  const querySnapshot = await getDocs(query(collection(db, "highscores"), orderBy("total", "desc"), limit(25)))
+  const querySnapshot = await getDocs(query(collection(db, "highscores2"), orderBy("total", "desc"), limit(25)))
   return querySnapshot
 }
 
