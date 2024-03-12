@@ -445,9 +445,9 @@ function draw() {
     asteroids.forEach((e, i) => {
       if (!Object.hasOwn(e, "boss")) e.boss = false;
       if (!Object.hasOwn(e, "closest")) e.closest = v(0, 0);
-      if (e.vel.mag() > 10+e.followPlayer*10) {
+      if (e.vel.mag() > 10 + e.followPlayer * 10) {
         e.vel.normalize();
-        e.vel.mult(10+e.followPlayer*10);
+        e.vel.mult(10 + e.followPlayer * 10);
       }
       e.pos.add(e.vel);
       if (e.pos.x > world.size.x / 2) {
@@ -540,7 +540,7 @@ function draw() {
       explosions.forEach((e, i) => {
         fill(230);
         stroke(200);
-        strokeWeight(e.size*0.1);
+        strokeWeight(e.size * 0.1);
         ellipse(e.pos.x, e.pos.y, e.tick * e.size, e.tick * e.size);
       });
       pop();
@@ -687,6 +687,7 @@ resolution.addEventListener("input", updateCanvasSize)
 
 function tickBullets() {
   bullets.forEach((bullet, i) => {
+    bullet.lastPos = bullet.pos.copy();
     bullet.pos.add(p5.Vector.mult(bullet.vel, clampTime * 0.03));
     bullet.dst.add(p5.Vector.mult(p5.Vector.sub(bullet.vel, player.vel), clampTime * 0.03));
     let s = -bullet.vel.mag();
@@ -702,7 +703,7 @@ function tickBullets() {
             if (run) {
               let baseDst = p5.Vector.sub(bullet.pos, asteroid.pos);
               let dst = p5.Vector.add(baseDst, v(offX, offY));
-              if (dst.mag() < asteroid.size / 2 + 10 + player.projectileSize * 1.2) {
+              if (lineCircleCollision(p5.Vector.add(bullet.pos, v(offX, offY)), p5.Vector.add(bullet.lastPos, v(offX, offY)), asteroid.pos, asteroid.size / 2 + 10 + player.projectileSize * 1.2)) {
                 bullets.splice(i, 1);
                 run = false;
                 i--;
@@ -775,21 +776,21 @@ function startLevelUp() {
   levelUpgrades = [];
   if (choices.length > 0) {
     for (let n = 0; n < 3; n++) {
-      if(choices.length>0) {
+      if (choices.length > 0) {
         let r = floor(random() * choices.length);
         levelUpgrades.push(choices[r]);
         choices = choices.filter(e => e.i != choices[r].i);
       }
     }
   } else {
-    levelUpgrades.push({ name: "XP", f: () => {player.score.other += 2000}, description: "Adds 2000 xp", i: -1 });
-    levelUpgrades.push({ name: "Health", f: () => {player.hp+=1}, description: "Restores 1 additional health", i: -1 });
+    levelUpgrades.push({ name: "XP", f: () => { player.score.other += 2000 }, description: "Adds 2000 xp", i: -1 });
+    levelUpgrades.push({ name: "Health", f: () => { player.hp += 1 }, description: "Restores 1 additional health", i: -1 });
   }
   document.getElementById("levelUpDialog").showModal();
-  document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => `<button id="levelUp${i}"><h2>${upgrade.name}</h2><p>${upgrade.description}</p>${upgrade.i>-1?`<p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p>`:""}</button>`).join("<br/>");
+  document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => `<button id="levelUp${i}"><h2>${upgrade.name}</h2><p>${upgrade.description}</p>${upgrade.i > -1 ? `<p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p>` : ""}</button>`).join("<br/>");
   levelUpgrades.forEach((e, i) => {
     document.getElementById("levelUp" + i).addEventListener("click", () => {
-      if(e.i>-1) upgrades[e.i].times++;
+      if (e.i > -1) upgrades[e.i].times++;
       e.f();
       levelUp = false;
       document.getElementById("levelUpDialog").close();
@@ -1016,3 +1017,16 @@ document.addEventListener("keydown", (e) => {
     if (pause) pauseGame();
   }
 });
+
+function lineCircleCollision(l1, l2, c, rad) {
+  if (p5.Vector.sub(l1, c).mag() <= rad) return true;
+  if (p5.Vector.sub(l2, c).mag() <= rad) return true;
+  let len = p5.Vector.sub(l2, l1).mag();
+  let dot = p5.Vector.sub(c, l1).dot(p5.Vector.sub(l2, l1));
+  let close = p5.Vector.add(l1, p5.Vector.mult(p5.Vector.sub(l2, l1), dot));
+  let d1 = p5.Vector.sub(c, l1).mag();
+  let d2 = p5.Vector.sub(c, l2).mag();
+  let b = 0.1;
+  if ((d1 + d2 >= len - b && d1 + d2 <= len + b) && (p5.Vector.sub(close, c).mag() <= rad)) return true;
+  return false;
+}
