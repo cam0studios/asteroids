@@ -42,7 +42,7 @@ window.submitScore = async function(username, time, score, version) {
     addDoc(collection(db, "highscores2"), {
       scoreData: score,
       time,
-      username,
+      username:username.substring(0,25),
       total: Object.values(player.score).reduce((a, b) => a + b, 0),
       timestamp: serverTimestamp(),
       version: version
