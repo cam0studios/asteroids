@@ -1,4 +1,4 @@
-const version = "3.3.0";
+const version = "3.4.0";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -801,35 +801,35 @@ function startLevelUp() {
 
 async function showDeathScreen() {
   const fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
-  const fullHighscore = Object.values(JSON.parse(localStorage.getItem("highscore"))).reduce((a, b) => a + b, 0)
-  const deathScreen = document.getElementById("deathDialog")
+  const fullHighscore = Object.values(JSON.parse(localStorage.getItem("highscore"))).reduce((a, b) => a + b, 0);
+  const deathScreen = document.getElementById("deathDialog");
   deathScreen.showModal();
   deathScreen.querySelector("span").innerHTML = `
     Your score: ${fullPlayerScore.toLocaleString()}<br>
     Your Highscore: ${fullHighscore.toLocaleString()}<br>
-  `
+  `;
   document.getElementById("leaderboard").innerHTML = "loading...";
 
-  await submitScore(username, timer, player.score)
+  await submitScore(username, timer, player.score, version);
   const globalHighscores = await getScores();
   document.getElementById("leaderboard").innerHTML = "";
-  let i = 0
+  let i = 0;
   globalHighscores.forEach(score => {
     i++;
-    const data = score.data()
-    const time = Math.floor(data.time)
-    const minutes = Math.floor(time / 60)
-    const seconds = time - minutes * 60
-    document.getElementById("leaderboard").innerHTML += `${i}. <b>${data.username}</b>: ${data.total.toLocaleString()} - ${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}<br>`
+    const data = score.data();
+    const time = Math.floor(data.time);
+    const minutes = Math.floor(time / 60);
+    const seconds = time - minutes * 60;
+    document.getElementById("leaderboard").innerHTML += `${i}. <b>${data.username}</b>: ${data.total.toLocaleString()} - ${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")} ${Object.hasOwn(data,"version")?`(${data.version})`:""}<br>`;
   })
 
 
-  console.log(globalHighscores)
+  console.log(globalHighscores);
 
   if (fullPlayerScore >= fullHighscore) {
     deathScreen.querySelector("span").innerHTML = `
       New Highscore! ${fullPlayerScore.toLocaleString()}<br>
-    `
+    `;
   }
 }
 
