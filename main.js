@@ -71,12 +71,12 @@ function changeUsername() {
 
 const upgrades = [
   { name: "Speed", f: () => player.speed += 0.2, weight: 1, description: "Your ship moves faster", max: 5 },
-  { name: "Multishot", f: () => player.multishot += 1, weight: 0.2, description: "Shoot more bullets", max: 10 },
+  { name: "Multishot", f: () => player.multishot += 1, weight: 0.2, description: "+1 Bullet per shot", max: 10 },
   { name: "Fire rate", f: () => player.reloadTime *= 0.85, weight: 0.8, description: "Shoot faster", max: 10 },
-  { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "Increases your max health by 1", max: 5 },
+  { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "+1 Max Heath, Heal 2 Hearts", max: 5 },
   { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 },
-  { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "Your bullets do more damage", max: 10 },
-  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.15, description: "Your bullets home on targets", max: 5 },
+  { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "+0.3 Bullet damage", max: 10 },
+  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.15, description: "Bullets automatically move toward targets", max: 5 },
   // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 5}
 ];
 const pickupData = [
