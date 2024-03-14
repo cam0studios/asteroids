@@ -19,7 +19,7 @@ var asteroids,
   pause,
   pauseBtns,
   oldBtns,
-  prefers = { controls: 1, showArrows: true, doScreenshake: true, minimap: true },
+  prefers = { controls: 1, showArrows: true, doScreenshake: true, minimap: true, showTouchControls: false, touchControlHeight: 150 },
   timer,
   levelUp,
   levelUpgrades,
@@ -42,7 +42,9 @@ var asteroids,
   username,
   maxFight,
   tick,
-  bossFight;
+  bossFight,
+  movementTouch,
+  dirTouch;
 
 if (!localStorage.getItem("highscore")) {
   localStorage.setItem("highscore", 0);
@@ -172,22 +174,22 @@ const pickupData = [
     weight: 0.3,
     collect: (e) => {
       player.score.pickups += 350;
-      explosions.push({pos:e.pos,vel:v(0,0),size:500,tick:0});
+      explosions.push({ pos: e.pos, vel: v(0, 0), size: 500, tick: 0 });
       function split(c) {
-        if(c>0) {
-          asteroids.forEach((a,i) => {
-            if(p5.Vector.sub(a.pos,e.pos).mag() <= 500) {
+        if (c > 0) {
+          asteroids.forEach((a, i) => {
+            if (p5.Vector.sub(a.pos, e.pos).mag() <= 500) {
               a.hp -= 5;
-              if(a.hp <= 0) {
+              if (a.hp <= 0) {
                 setTimeout(() => {
-                  astSplit(a,p5.Vector.sub(a.pos,e.pos).heading());
-                },50);
-                asteroids.splice(i,1);
+                  astSplit(a, p5.Vector.sub(a.pos, e.pos).heading());
+                }, 50);
+                asteroids.splice(i, 1);
                 i--;
               }
             }
           });
-          setTimeout(() => split(c-1),100);
+          setTimeout(() => split(c - 1), 100);
         }
       }
       split(2);
@@ -199,7 +201,7 @@ const pickupData = [
       circle(0, 5, 25);
       stroke("rgb(250, 240, 230)");
       line(0, -10, 0, -15);
-      line(0,-15,-5,-15);
+      line(0, -15, -5, -15);
     }
   }
 ];
@@ -365,6 +367,72 @@ function setup() {
   window.onblur = () => {
     if (!levelUp) pauseGame();
   }
+  movementTouch = { id: -1, pos: v(0, 0), down: false };
+  dirTouch = { id: -1, pos: v(0, 0), down: false };
+  document.getElementsByTagName("canvas")[0].addEventListener("touchstart", (e) => {
+    [...e.changedTouches].forEach((t) => {
+      let p = v(t.pageX, t.pageY);
+      let s1 = p5.Vector.sub(p,v(40,145));
+      if(s1.x > -15 && s1.x < 15 && s1.y > -15 && s1.y < 15) {
+        pauseGame();
+      }
+      if (prefers.showTouchControls) {
+        if (p5.Vector.sub(p, v(125, size.y + prefers.touchControlHeight / 2)).mag() <= 60) {
+          e.preventDefault();
+          console.log("movedown");
+          movementTouch = { id: t.identifier, pos: p5.Vector.sub(p, v(125, size.y + prefers.touchControlHeight / 2)), down: true };
+        }
+        if (p5.Vector.sub(p, v(size.x - 125, size.y + prefers.touchControlHeight / 2)).mag() <= 60) {
+          e.preventDefault();
+          console.log("dirdown");
+          dirTouch = { id: t.identifier, pos: p5.Vector.sub(p, v(size.x - 125, size.y + prefers.touchControlHeight / 2)), down: true };
+        }
+        s1 = p5.Vector.sub(p, v(size.x / 2, size.y + prefers.touchControlHeight / 2));
+        if (s1.x > -30 && s1.x < 30 && s1.y > -30 && s1.y < 30) {
+          console.log("firedown");
+          player.toggleFire = !player.toggleFire;
+        }
+      }
+    });
+  });
+  document.getElementsByTagName("canvas")[0].addEventListener("touchmove", (e) => {
+    if (prefers.showTouchControls) {
+      [...e.changedTouches].forEach((t) => {
+        let p = v(t.pageX, t.pageY);
+        if (t.identifier == movementTouch.id) {
+          e.preventDefault();
+          movementTouch.pos = p5.Vector.sub(p, v(125, size.y + prefers.touchControlHeight / 2));
+          if (movementTouch.pos.mag() > 40) {
+            movementTouch.pos.normalize();
+            movementTouch.pos.mult(40);
+          }
+        }
+        if (t.identifier == dirTouch.id) {
+          e.preventDefault();
+          dirTouch.pos = p5.Vector.sub(p, v(size.x - 125, size.y + prefers.touchControlHeight / 2));
+          dirTouch.pos.normalize();
+          dirTouch.pos.mult(40);
+        }
+      });
+    }
+  });
+  document.getElementsByTagName("canvas")[0].addEventListener("touchend", (e) => {
+    if(prefers.showTouchControls) {
+      [...e.changedTouches].forEach((t) => {
+        if (t.identifier == movementTouch.id) {
+          e.preventDefault();
+          movementTouch.down = false;
+          movementTouch.id = -1;
+          movementTouch.pos = v(0, 0);
+        }
+        if (t.identifier == dirTouch.id) {
+          e.preventDefault();
+          dirTouch.down = false;
+          dirTouch.id = -1;
+        }
+      });
+    }
+  });
 }
 
 function draw() {
@@ -433,15 +501,19 @@ function draw() {
         player.dir = p5.Vector.sub(v(mouseX, mouseY), p5.Vector.div(size, 2)).heading();
       } else if (prefers.controls == 2) {
         player.vel.add(p5.Vector.mult(joy, player.speed + 0.1));
-        let newDir = v(keyIsDown(39)-keyIsDown(37),keyIsDown(40)-keyIsDown(38));
-        if(newDir.mag()>0) {
+        let newDir = v(keyIsDown(39) - keyIsDown(37), keyIsDown(40) - keyIsDown(38));
+        if (newDir.mag() > 0) {
           newDir = newDir.heading();
-          let dst = player.dir-newDir;
-          if(dst>PI) dst-=2*PI;
-          if(dst<-PI) dst+=2*PI;
+          let dst = player.dir - newDir;
+          if (dst > PI) dst -= 2 * PI;
+          if (dst < -PI) dst += 2 * PI;
           dst *= 0.1;
           player.dir -= dst;
         }
+      }
+      if (prefers.showTouchControls) {
+        player.vel.add(p5.Vector.mult(movementTouch.pos, (player.speed + 0.1) / 40));
+        player.dir = dirTouch.pos.heading();
       }
       player.iframe -= clampTime * 0.03;
       if (player.pos.x > world.size.x / 2) {
@@ -469,7 +541,7 @@ function draw() {
       if (levelUp && levelUpgrades.length == 0) {
         startLevelUp();
       }
-      if ((keyIsDown(32) || mouseIsPressed || player.toggleFire) && player.reload <= 0) {
+      if ((((keyIsDown(32) || mouseIsPressed) && !prefers.showTouchControls) || player.toggleFire) && player.reload <= 0) {
         let num = round(player.multishot);
         for (let i = 0; i < num; i++) {
           player.stats.bulletsFired++;
@@ -507,9 +579,9 @@ function draw() {
         e.vel.normalize();
         e.vel.mult(10 + e.followPlayer * 10);
       }
-      if(e.hp <= 0) {
-        astSplit(e,random()*2*PI);
-        asteroids.splice(i,1);
+      if (e.hp <= 0) {
+        astSplit(e, random() * 2 * PI);
+        asteroids.splice(i, 1);
         i--;
       }
       e.pos.add(e.vel);
@@ -561,7 +633,7 @@ function draw() {
       if (e.tick >= 2) {
         explosions.splice(i, 1);
       }
-      e.tick += clampTime * 0.04 / Math.pow(e.size,0.3);
+      e.tick += clampTime * 0.04 / Math.pow(e.size, 0.3);
     });
   }
   if (levelUp) {
@@ -721,7 +793,7 @@ function draw() {
   strokeWeight(4);
   push();
   translate(mouseX, mouseY);
-  if (prefers.controls == 1 && !pause && !levelUp) {
+  if (prefers.controls == 1 && !pause && !levelUp && (!prefers.showTouchControls || (prefers.showTouchControls && mouseY <= size.y))) {
     line(-15, -10, -10, -15);
     line(15, 10, 10, 15);
     line(-15, 10, -10, 15);
@@ -729,12 +801,54 @@ function draw() {
     line(-5, 0, 5, 0);
     line(0, -5, 0, 5);
     canvas.style.cursor = "none";
+  } else if (prefers.showTouchControls && mouseY > size.y - 5 && mouseY < size.y + 5) {
+    canvas.style.cursor = "row-resize";
   } else {
     canvas.style.cursor = "unset";
   }
   pop();
 
   player.restart = keyIsDown(32);
+
+  fill(90);
+  stroke(70);
+  strokeWeight(5);
+  rect(25,120,30,30,5);
+  line(35,130,35,140);
+  line(45,130,45,140);
+
+  if (prefers.showTouchControls) {
+    push();
+    translate(0, size.y + prefers.touchControlHeight / 2);
+    fill(0);
+    stroke(50);
+    strokeWeight(5);
+    rect(0, -prefers.touchControlHeight / 2, size.x, prefers.touchControlHeight);
+    //movement stick
+    fill(80);
+    stroke(70);
+    strokeWeight(10);
+    circle(125, 0, 100);
+    fill(120);
+    stroke(110);
+    strokeWeight(5);
+    circle(125 + movementTouch.pos.x, movementTouch.pos.y, 30);
+    //direction stick
+    fill(80);
+    stroke(70);
+    strokeWeight(10);
+    circle(size.x - 125, 0, 100);
+    fill(120);
+    stroke(110);
+    strokeWeight(5);
+    circle(size.x - 125 + dirTouch.pos.x, dirTouch.pos.y, 30);
+    //toggle fire
+    fill(player.toggleFire ? 120 : 80);
+    stroke(player.toggleFire ? 110 : 70);
+    strokeWeight(10);
+    rect(size.x / 2 - 30, -30, 60, 60, 5);
+    pop();
+  }
 }
 
 function updateCanvasSize() {
@@ -742,10 +856,14 @@ function updateCanvasSize() {
   if (size.x > world.size.x - 10) size.x = world.size.x - 10;
   if (size.y > world.size.y - 10) size.y = world.size.y - 10;
   resizeCanvas(size.x, size.y, true);
+  if (prefers.showTouchControls) {
+    size.y -= prefers.touchControlHeight;
+  }
   document.querySelector(".p5Canvas").style.transform = `scale(${resolution.value}) translate(-50%, -50%)`
 }
 
 addEventListener("resize", updateCanvasSize);
+document.getElementById("showTouchControls").addEventListener("input", () => setTimeout(updateCanvasSize, 50));
 resolution.addEventListener("input", updateCanvasSize)
 
 function tickBullets() {
@@ -874,9 +992,9 @@ async function showDeathScreen() {
   document.getElementById("leaderboard").innerHTML = "loading...";
 
   await submitScore(username, timer, player.score, version);
-  
+
   document.getElementById("leaderboard").innerHTML = "";
-  
+
   const globalHighscores = await getScores();
   renderHighscores(globalHighscores)
 
@@ -889,7 +1007,7 @@ async function showDeathScreen() {
 
 let loadMoreButton = document.getElementById("loadMoreButton");
 
-async function loadMoreScores (startingAt, i) {
+async function loadMoreScores(startingAt, i) {
   const scores = await getScores(startingAt);
   renderHighscores(scores, i)
 }
@@ -1105,7 +1223,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key == "Escape") {
     pause = !pause;
     if (pause) pauseGame();
-  } else if(e.key == "z") {
+  } else if (e.key == "z") {
     player.toggleFire = !player.toggleFire;
   }
 });
