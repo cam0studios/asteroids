@@ -170,20 +170,27 @@ const pickupData = [
   {
     col: "rgb(140, 135, 130)",
     weight: 0.3,
-    collect: () => {
+    collect: (e) => {
       player.score.pickups += 350;
-      asteroids.forEach((e,i) => {
-        if(p5.Vector.sub(e.pos,player.pos).mag() <= 500) {
-          e.hp -= 10;
-          if(e.hp <= 0) {
-            setTimeout(() => {
-              astSplit(e,p5.Vector.sub(e.pos,player.pos).heading());
-            },100);
-            asteroids.splice(i,1);
-            i--;
-          }
+      explosions.push({pos:e.pos,vel:v(0,0),size:500,tick:0});
+      function split(c) {
+        if(c>0) {
+          asteroids.forEach((a,i) => {
+            if(p5.Vector.sub(a.pos,e.pos).mag() <= 500) {
+              a.hp -= 5;
+              if(a.hp <= 0) {
+                setTimeout(() => {
+                  astSplit(a,p5.Vector.sub(a.pos,e.pos).heading());
+                },50);
+                asteroids.splice(i,1);
+                i--;
+              }
+            }
+          });
+          setTimeout(() => split(c-1),100);
         }
-      });
+      }
+      split(2);
     },
     draw: () => {
       fill("rgb(50, 30, 10)");
@@ -483,7 +490,7 @@ function draw() {
 
         player.alive = false;
         world.screenshake.set(8, 8, 1)
-        explosions.push({ pos: player.pos.copy(), vel: player.vel.copy(), size: 20, tick: 0 });
+        explosions.push({ pos: player.pos.copy(), vel: player.vel.copy(), size: 70, tick: 0 });
         bullets = [];
 
         showDeathScreen();
@@ -551,10 +558,10 @@ function draw() {
     });
     tickBullets();
     explosions.forEach((e, i) => {
-      e.tick += clampTime * 0.03;
-      if (e.tick >= 2 + e.size / 3) {
+      if (e.tick >= 2) {
         explosions.splice(i, 1);
       }
+      e.tick += clampTime * 0.04 / Math.pow(e.size,0.3);
     });
   }
   if (levelUp) {
@@ -1052,7 +1059,7 @@ function v(x, y) {
 }
 function astSplit(a, dir) {
   player.stats.kills++;
-  explosions.push({ pos: a.pos.copy(), vel: a.vel.copy(), tick: 0, size: a.size / 3 });
+  explosions.push({ pos: a.pos.copy(), vel: a.vel.copy(), tick: 0, size: a.size });
   world.screenshake.set(a.size * screenshakeModifier, a.size * screenshakeModifier, 0.1)
   player.score.kills += a.size > 35 ? 150 : (a.size > 25 ? 100 : 75);
   player.xp += a.size > 35 ? 2 : 1;
