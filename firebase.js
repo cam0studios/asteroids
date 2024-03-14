@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
-import { getFirestore, collection, addDoc, doc, getDocs, where, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js"
+import { getFirestore, collection, addDoc, doc, getDocs, where, query, orderBy, limit, serverTimestamp, startAfter } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js"
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -42,15 +42,23 @@ window.submitScore = async function(username, time, score, version) {
     addDoc(collection(db, "highscores2"), {
       scoreData: score,
       time,
-      username:username.substring(0,25),
+      username:username.substring(0, 25),
       total: Object.values(player.score).reduce((a, b) => a + b, 0),
       timestamp: serverTimestamp(),
-      version: version
+      version: version,
+      stats: player.stats
     })
   }
 }
-window.getScores = async function(scoreOffset) {
-  const querySnapshot = await getDocs(query(collection(db, "highscores2"), orderBy("total", "desc"), limit(25)))
+window.getScores = async function(startAtObject) {
+  const collectionName = "highscores2",
+        itemLimit = 10
+  let querySnapshot;
+  if (typeof startAtObject !== "undefined") {
+    querySnapshot = await getDocs(query(collection(db, collectionName), orderBy("total", "desc"), limit(itemLimit), startAfter(startAtObject)))
+  } else {
+    querySnapshot = await getDocs(query(collection(db, collectionName), orderBy("total", "desc"), limit(itemLimit)))
+  }
   return querySnapshot
 }
 

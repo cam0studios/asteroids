@@ -1,4 +1,4 @@
-const version = "3.4.0";
+const version = "3.5.0";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -71,12 +71,12 @@ function changeUsername() {
 
 const upgrades = [
   { name: "Speed", f: () => player.speed += 0.2, weight: 1, description: "Your ship moves faster", max: 5 },
-  { name: "Multishot", f: () => player.multishot += 1, weight: 0.2, description: "Shoot more bullets", max: 10 },
+  { name: "Multishot", f: () => player.multishot += 1, weight: 0.2, description: "+1 Bullet per shot", max: 10 },
   { name: "Fire rate", f: () => player.reloadTime *= 0.85, weight: 0.8, description: "Shoot faster", max: 10 },
-  { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "Increases your max health by 1", max: 5 },
+  { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "+1 Max Heath, Heal 2 Hearts", max: 5 },
   { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 },
-  { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "Your bullets do more damage", max: 10 },
-  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.15, description: "Your bullets home on targets", max: 5 },
+  { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "+0.3 Bullet damage", max: 10 },
+  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.15, description: "Bullets automatically move toward targets", max: 5 },
   // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 5}
 ];
 const pickupData = [
@@ -134,6 +134,7 @@ const pickupData = [
     weight: 0,
     collect: (e) => {
       player.score.other += 10000;
+      player.stats.chests++;
       let gotten = [];
       for (let i = 0; i < e.amount; i++) {
         let choices = upgrades.map((u, i) => { return { e: u, i: i } }).filter(u => u.e.times < u.e.max).map(u => u.i);
@@ -294,6 +295,13 @@ function setup() {
       pickups: 0,
       other: 0
     },
+    stats: {
+      kills: 0,
+      pickups: 0,
+      chests: 0,
+      bulletsFired: 0,
+      bulletsHit: 0
+    },
     iframe: 0,
     xp: 0,
     lvlUp: 50,
@@ -343,7 +351,7 @@ function draw() {
         asteroidSpeed += 0.005;
         asteroids.push({
           pos: p5.Vector.add(player.pos, v(size.x / 2, 0).rotate(random() * 2 * PI)),
-          vel: v(random() * asteroidSpeed + asteroidSpeed, 0).rotate(random() * 2 * PI),
+          vel: v(random() * asteroidSpeed, 0).rotate(random() * 2 * PI),
           size: 40, hp: 2 + floor(timer / 100),
           original: true
         });
@@ -429,6 +437,7 @@ function draw() {
       if ((keyIsDown(32) || mouseIsPressed || player.toggleFire) && player.reload <= 0) {
         let num = round(player.multishot);
         for (let i = 0; i < num; i++) {
+          player.stats.bulletsFired++;
           bullets.push({
             pos: player.pos.copy(),
             vel: p5.Vector.add(player.vel, v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2)),
@@ -576,6 +585,7 @@ function draw() {
         if (p5.Vector.sub(pos, player.pos).mag() <= 50) {
           world.pickups.splice(i, 1);
           pickupData[pickup.type].collect(pickup);
+          player.stats.pickups++;
         }
         if (p5.Vector.sub(pos, player.pos).mag() < p5.Vector.sub(p5.Vector.add(pickup.pos, pickup.closest), player.pos).mag()) {
           pickup.closest = v(xOff, yOff);
@@ -692,7 +702,6 @@ function updateCanvasSize() {
   if (size.x > world.size.x - 10) size.x = world.size.x - 10;
   if (size.y > world.size.y - 10) size.y = world.size.y - 10;
   resizeCanvas(size.x, size.y, true);
-  console.log(document.querySelector(".p5Canvas"), document.querySelector(".p5Canvas").style.transform)
   document.querySelector(".p5Canvas").style.transform = `scale(${resolution.value}) translate(-50%, -50%)`
 }
 
@@ -719,6 +728,7 @@ function tickBullets() {
               let dst = p5.Vector.add(baseDst, v(offX, offY));
               if (lineCircleCollision(p5.Vector.add(bullet.pos, v(offX, offY)), p5.Vector.add(bullet.lastPos, v(offX, offY)), asteroid.pos, asteroid.size / 2 + 10 + player.projectileSize * 1.2)) {
                 bullets.splice(i, 1);
+                player.stats.bulletsHit++;
                 run = false;
                 i--;
                 asteroid.hp -= bullet.dmg;
@@ -756,7 +766,7 @@ function pauseGame() {
     //drawing upgrades
     const upgradeElement = document.querySelector("#upgrades");
 
-    upgradeElement.innerHTML = upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}` : "").join("<br>") + `<br>${version} (${pageTime.toLocaleDateString().replaceAll("/", ".")}.${pageTime.getHours()})`
+    upgradeElement.innerHTML = upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>` : "").join("") + `${version} (${pageTime.toLocaleDateString().replaceAll("/", ".")}.${pageTime.getHours()})`
 
     document.getElementById("pauseMenu").showModal();
     document.getElementById("resume").addEventListener("click", () => { pause = false; document.getElementById("pauseMenu").close() });
@@ -780,7 +790,6 @@ function pauseGame() {
 function startLevelUp() {
   let choices = [];
   upgrades.forEach((e, i) => {
-    console.log(e.name + " - " + e.times + "/" + e.max);
     if (e.times < e.max) {
       for (let n = 0; n < e.weight; n += 0.05) {
         choices.push({ name: e.name, f: e.f, description: e.description, i: i });
@@ -825,26 +834,52 @@ async function showDeathScreen() {
   document.getElementById("leaderboard").innerHTML = "loading...";
 
   await submitScore(username, timer, player.score, version);
-  const globalHighscores = await getScores();
+  
   document.getElementById("leaderboard").innerHTML = "";
-  let i = 0;
-  globalHighscores.forEach(score => {
-    i++;
-    const data = score.data();
-    const time = Math.floor(data.time);
-    const minutes = Math.floor(time / 60);
-    const seconds = time - minutes * 60;
-    document.getElementById("leaderboard").innerHTML += `${i}. <b>${data.username}</b>: ${data.total.toLocaleString()} - ${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")} ${Object.hasOwn(data,"version")?`(${data.version})`:""}<br>`;
-  })
-
-
-  console.log(globalHighscores);
+  
+  const globalHighscores = await getScores();
+  renderHighscores(globalHighscores)
 
   if (fullPlayerScore >= fullHighscore) {
     deathScreen.querySelector("span").innerHTML = `
       New Highscore! ${fullPlayerScore.toLocaleString()}<br>
     `;
   }
+}
+
+let loadMoreButton = document.getElementById("loadMoreButton");
+
+async function loadMoreScores (startingAt, i) {
+  const scores = await getScores(startingAt);
+  renderHighscores(scores, i)
+}
+
+function renderHighscores(highscores, i = null) {
+  if (i == null) {
+    i = 0;
+  }
+  highscores.forEach(score => {
+    i++;
+    const data = score.data();
+    const time = Math.floor(data.time);
+    const minutes = Math.floor(time / 60);
+    const seconds = time - minutes * 60;
+    let htmlString = `${i}. <b>${data.username}</b>: ${data.total.toLocaleString()} - ${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+
+    if (Object.hasOwn(data, "version") && data.version !== version) {
+      htmlString = `<span class="wrongVersion" title="This record was acheived on version ${data.version}, the game may have been rebalenced since then.">${htmlString}</span>`
+    }
+
+    document.getElementById("leaderboard").innerHTML += htmlString + "<br>";
+
+    if (i % 10 == 0) {
+      var old_element = loadMoreButton;
+      loadMoreButton = old_element.cloneNode(true);
+      old_element.parentNode.replaceChild(loadMoreButton, old_element);
+
+      loadMoreButton.addEventListener("click", () => loadMoreScores(score, i))
+    }
+  })
 }
 
 function drawHUD() {
@@ -983,6 +1018,7 @@ function v(x, y) {
   return createVector(x, y);
 }
 function astSplit(a, dir) {
+  player.stats.kills++;
   explosions.push({ pos: a.pos.copy(), vel: a.vel.copy(), tick: 0, size: a.size / 3 });
   world.screenshake.set(a.size * screenshakeModifier, a.size * screenshakeModifier, 0.1)
   player.score.kills += a.size > 35 ? 150 : (a.size > 25 ? 100 : 75);
