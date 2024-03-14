@@ -166,6 +166,34 @@ const pickupData = [
       fill(120);
       ellipse(0, -3, 5, 10);
     }
+  },
+  {
+    col: "rgb(140, 135, 130)",
+    weight: 0.3,
+    collect: () => {
+      player.score.pickups += 350;
+      asteroids.forEach((e,i) => {
+        if(p5.Vector.sub(e.pos,player.pos).mag() <= 500) {
+          e.hp -= 10;
+          if(e.hp <= 0) {
+            setTimeout(() => {
+              astSplit(e,p5.Vector.sub(e.pos,player.pos).heading());
+            },100);
+            asteroids.splice(i,1);
+            i--;
+          }
+        }
+      });
+    },
+    draw: () => {
+      fill("rgb(50, 30, 10)");
+      stroke("rgb(100, 70, 60)");
+      strokeWeight(5);
+      circle(0, 5, 25);
+      stroke("rgb(250, 240, 230)");
+      line(0, -10, 0, -15);
+      line(0,-15,-5,-15);
+    }
   }
 ];
 
@@ -471,6 +499,11 @@ function draw() {
       if (e.vel.mag() > 10 + e.followPlayer * 10) {
         e.vel.normalize();
         e.vel.mult(10 + e.followPlayer * 10);
+      }
+      if(e.hp <= 0) {
+        astSplit(e,random()*2*PI);
+        asteroids.splice(i,1);
+        i--;
       }
       e.pos.add(e.vel);
       if (e.pos.x > world.size.x / 2) {
