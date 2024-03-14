@@ -307,7 +307,8 @@ function setup() {
     projectileSize: 5,
     dmg: 1,
     homing: 0,
-    homingRange: 80
+    homingRange: 80,
+    toggleFire: false
   };
   frameRate(1000);
 
@@ -387,6 +388,17 @@ function draw() {
       } else if (prefers.controls == 1) {
         player.vel.add(p5.Vector.mult(joy, player.speed + 0.1));
         player.dir = p5.Vector.sub(v(mouseX, mouseY), p5.Vector.div(size, 2)).heading();
+      } else if (prefers.controls == 2) {
+        player.vel.add(p5.Vector.mult(joy, player.speed + 0.1));
+        let newDir = v(keyIsDown(39)-keyIsDown(37),keyIsDown(40)-keyIsDown(38));
+        if(newDir.mag()>0) {
+          newDir = newDir.heading();
+          let dst = player.dir-newDir;
+          if(dst>PI) dst-=2*PI;
+          if(dst<-PI) dst+=2*PI;
+          dst *= 0.1;
+          player.dir -= dst;
+        }
       }
       player.iframe -= clampTime * 0.03;
       if (player.pos.x > world.size.x / 2) {
@@ -414,7 +426,7 @@ function draw() {
       if (levelUp && levelUpgrades.length == 0) {
         startLevelUp();
       }
-      if ((keyIsDown(32) || mouseIsPressed) && player.reload <= 0) {
+      if ((keyIsDown(32) || mouseIsPressed || player.toggleFire) && player.reload <= 0) {
         let num = round(player.multishot);
         for (let i = 0; i < num; i++) {
           bullets.push({
@@ -609,7 +621,7 @@ function draw() {
     push();
     rotate(player.dir);
     push();
-    if (prefers.controls == 0) {
+    if (prefers.controls == 0 || prefers.controls == 2) {
       strokeWeight(2);
       for (let dst = 30; dst < 500; dst += 10) {
         stroke("rgba(255, 255, 255, " + 75 / (dst + 60) + ")");
@@ -735,7 +747,7 @@ function tickBullets() {
 }
 
 function drawPauseMenu() {
-  document.getElementById("control").innerHTML = ["AD Turning", "Mouse + WASD"][prefers.controls];
+  document.getElementById("control").innerHTML = ["AD Turning", "Mouse + WASD", "Mouse + Arrow Turning"][prefers.controls];
 }
 function pauseGame() {
   setTimeout(() => {
@@ -750,7 +762,7 @@ function pauseGame() {
     document.getElementById("resume").addEventListener("click", () => { pause = false; document.getElementById("pauseMenu").close() });
     document.getElementById("quit").addEventListener("click", () => { player.hp = 0; pause = false; document.getElementById("pauseMenu").close() });
     document.getElementById("exit").addEventListener("click", () => noLoop());
-    document.getElementById("control").addEventListener("click", () => { prefers.controls++; if (prefers.controls > 1) prefers.controls -= 2 });
+    document.getElementById("control").addEventListener("click", () => { prefers.controls++; if (prefers.controls > 2) prefers.controls -= 3 });
     [...document.getElementById("pauseMenu").querySelectorAll("label")].forEach(label => {
       const checkbox = label.querySelector("input[type='checkbox']")
       checkbox.checked = prefers[checkbox.id];
@@ -981,7 +993,7 @@ function astSplit(a, dir) {
   if (a.size > 35 && random() < 0.5) {
     asteroidSpawnTimer = 0;
   }
-  if (random() < (a.size / 100 - 0.2) * 0.2 * Math.pow(120, 1.5) / Math.pow(timer + 120, 1.5) + 0.005 && !a.boss && !a.original) {
+  if (random() < (a.size / 100 - 0.2) * 0.1 * Math.pow(120, 1.5) / Math.pow(timer + 120, 1.5) + 0.005 && !a.boss && !a.original) {
     let choices = [];
     pickupData.forEach((option, i) => {
       for (let n = 0; n < option.weight * 20; n++) choices.push(i);
@@ -1017,6 +1029,8 @@ document.addEventListener("keydown", (e) => {
   if (e.key == "Escape") {
     pause = !pause;
     if (pause) pauseGame();
+  } else if(e.key == "z") {
+    player.toggleFire = !player.toggleFire;
   }
 });
 
