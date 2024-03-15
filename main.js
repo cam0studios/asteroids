@@ -44,7 +44,8 @@ var asteroids,
   tick,
   bossFight,
   movementTouch,
-  dirTouch;
+  dirTouch,
+  mouseDown;
 
 if (!localStorage.getItem("highscore")) {
   localStorage.setItem("highscore", 0);
@@ -369,11 +370,29 @@ function setup() {
   }
   movementTouch = { id: -1, pos: v(0, 0), down: false };
   dirTouch = { id: -1, pos: v(0, 0), down: false };
+  mouseDown = false;
+  document.getElementsByTagName("canvas")[0].addEventListener("mousedown",(e) => {
+    mouseDown = true;
+    let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
+    e.target.dispatchEvent(new TouchEvent("touchstart",{cancelable:true,touches:touches,changedTouches:touches}));
+  });
+  document.getElementsByTagName("canvas")[0].addEventListener("mousemove",(e) => {
+    if(mouseDown) {
+      let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
+      e.target.dispatchEvent(new TouchEvent("touchmove",{cancelable:true,touches:touches,changedTouches:touches}));
+    }
+  });
+  document.getElementsByTagName("canvas")[0].addEventListener("mouseup",(e) => {
+    mouseDown = false;
+    let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
+    e.target.dispatchEvent(new TouchEvent("touchend",{cancelable:true,touches:[],changedTouches:touches}));
+  });
   document.getElementsByTagName("canvas")[0].addEventListener("touchstart", (e) => {
+    console.log([...e.changedTouches]);
     [...e.changedTouches].forEach((t) => {
       let p = v(t.pageX, t.pageY);
       let s1 = p5.Vector.sub(p,v(40,145));
-      if(s1.x > -15 && s1.x < 15 && s1.y > -15 && s1.y < 15) {
+      if(s1.x > -15 && s1.x < 15 && s1.y > -15 && s1.y < 15 && !pause) {
         pauseGame();
       }
       if (prefers.showTouchControls) {
