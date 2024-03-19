@@ -46,7 +46,8 @@ window.submitScore = async function(username, time, score, version) {
       total: Object.values(player.score).reduce((a, b) => a + b, 0),
       timestamp: serverTimestamp(),
       version: version,
-      stats: player.stats
+      stats: player.stats,
+      userId: localStorage.getItem("userId")
     })
   }
 }
