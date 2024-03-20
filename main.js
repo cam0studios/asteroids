@@ -292,6 +292,108 @@ const bosses = [
 ];
 
 function setup() {
+  world.size = v(worldSize, worldSize);
+  size = v(innerWidth / resolution.value, innerHeight / resolution.value);
+  if (size.x > world.size.x - 10) size.x = world.size.x - 10;
+  if (size.y > world.size.y - 10) size.y = world.size.y - 10;
+
+  createCanvas(size.x, size.y);
+  frameRate(1000);
+  window.onblur = () => {
+    if (!levelUp && !pause && started) pauseGame();
+  }
+  mouseDown = false;
+  if(Object.hasOwn(window,"Touch")) {
+    movementTouch = { id: -1, pos: v(0, 0), down: false };
+    dirTouch = { id: -1, pos: v(0, 0), down: false };
+    document.getElementsByTagName("canvas")[0].addEventListener("mousedown",(e) => {
+      mouseDown = true;
+      let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
+      e.target.dispatchEvent(new TouchEvent("touchstart",{cancelable:true,touches:touches,changedTouches:touches}));
+    });
+    document.getElementsByTagName("canvas")[0].addEventListener("mousemove",(e) => {
+      if(mouseDown) {
+        let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
+        e.target.dispatchEvent(new TouchEvent("touchmove",{cancelable:true,touches:touches,changedTouches:touches}));
+      }
+    });
+    document.getElementsByTagName("canvas")[0].addEventListener("mouseup",(e) => {
+      mouseDown = false;
+      let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
+      e.target.dispatchEvent(new TouchEvent("touchend",{cancelable:true,touches:[],changedTouches:touches}));
+    });
+    document.getElementsByTagName("canvas")[0].addEventListener("touchstart", (e) => {
+      console.log([...e.changedTouches]);
+      [...e.changedTouches].forEach((t) => {
+        let p = v(t.pageX, t.pageY);
+        let s1 = p5.Vector.sub(p,v(40,145));
+        if(s1.x > -15 && s1.x < 15 && s1.y > -15 && s1.y < 15 && !pause) {
+          pauseGame();
+        }
+        if (prefers.showTouchControls) {
+          if (p5.Vector.sub(p, v(125, size.y + prefers.touchControlHeight / 2)).mag() <= 60) {
+            e.preventDefault();
+            console.log("movedown");
+            movementTouch = { id: t.identifier, pos: p5.Vector.sub(p, v(125, size.y + prefers.touchControlHeight / 2)), down: true };
+          }
+          if (p5.Vector.sub(p, v(size.x - 125, size.y + prefers.touchControlHeight / 2)).mag() <= 60) {
+            e.preventDefault();
+            console.log("dirdown");
+            dirTouch = { id: t.identifier, pos: p5.Vector.sub(p, v(size.x - 125, size.y + prefers.touchControlHeight / 2)), down: true };
+          }
+          s1 = p5.Vector.sub(p, v(size.x / 2, size.y + prefers.touchControlHeight / 2));
+          if (s1.x > -30 && s1.x < 30 && s1.y > -30 && s1.y < 30) {
+            console.log("firedown");
+            player.toggleFire = !player.toggleFire;
+          }
+        }
+      });
+    });
+    document.getElementsByTagName("canvas")[0].addEventListener("touchmove", (e) => {
+      if (prefers.showTouchControls) {
+        [...e.changedTouches].forEach((t) => {
+          let p = v(t.pageX, t.pageY);
+          if (t.identifier == movementTouch.id) {
+            e.preventDefault();
+            movementTouch.pos = p5.Vector.sub(p, v(125, size.y + prefers.touchControlHeight / 2));
+            if (movementTouch.pos.mag() > 40) {
+              movementTouch.pos.normalize();
+              movementTouch.pos.mult(40);
+            }
+          }
+          if (t.identifier == dirTouch.id) {
+            e.preventDefault();
+            dirTouch.pos = p5.Vector.sub(p, v(size.x - 125, size.y + prefers.touchControlHeight / 2));
+            dirTouch.pos.normalize();
+            dirTouch.pos.mult(40);
+          }
+        });
+      }
+    });
+    document.getElementsByTagName("canvas")[0].addEventListener("touchend", (e) => {
+      if(prefers.showTouchControls) {
+        [...e.changedTouches].forEach((t) => {
+          if (t.identifier == movementTouch.id) {
+            e.preventDefault();
+            movementTouch.down = false;
+            movementTouch.id = -1;
+            movementTouch.pos = v(0, 0);
+          }
+          if (t.identifier == dirTouch.id) {
+            e.preventDefault();
+            dirTouch.down = false;
+            dirTouch.id = -1;
+          }
+        });
+      }
+    });
+  } else {
+    movementTouch = undefined;
+    dirTouch = undefined;
+  }
+  setupVars();
+}
+function setupVars() {
   upgrades.forEach((e) => {
     e.times = 0;
   });
@@ -311,13 +413,7 @@ function setup() {
   asteroidSpawnRate = 250;
   asteroidSpeed = 1.5;
   timer = 0;
-  world.size = v(worldSize, worldSize);
-  size = v(innerWidth / resolution.value, innerHeight / resolution.value);
-  if (size.x > world.size.x - 10) size.x = world.size.x - 10;
-  if (size.y > world.size.y - 10) size.y = world.size.y - 10;
-
-  createCanvas(size.x, size.y);
-
+  started = false;
   player = {
     pos: v(0, 0),
     vel: v(0, 0),
@@ -356,7 +452,11 @@ function setup() {
     homingRange: 80,
     toggleFire: false
   };
-  frameRate(1000);
+  document.getElementById("startMenu").showModal();
+  document.getElementById("startButton").addEventListener("click",() => {
+    started = true;
+    document.getElementById("startMenu").close();
+  });
 
   // testing, all pickups
   // for (let j = 0; 10 > j++;) {
@@ -364,508 +464,431 @@ function setup() {
   //     world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 50, -1000 + j * 50), type: i })
   //   }
   // }
-
-  window.onblur = () => {
-    if (!levelUp) pauseGame();
-  }
-  movementTouch = { id: -1, pos: v(0, 0), down: false };
-  dirTouch = { id: -1, pos: v(0, 0), down: false };
-  mouseDown = false;
-  document.getElementsByTagName("canvas")[0].addEventListener("mousedown",(e) => {
-    mouseDown = true;
-    let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
-    e.target.dispatchEvent(new TouchEvent("touchstart",{cancelable:true,touches:touches,changedTouches:touches}));
-  });
-  document.getElementsByTagName("canvas")[0].addEventListener("mousemove",(e) => {
-    if(mouseDown) {
-      let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
-      e.target.dispatchEvent(new TouchEvent("touchmove",{cancelable:true,touches:touches,changedTouches:touches}));
-    }
-  });
-  document.getElementsByTagName("canvas")[0].addEventListener("mouseup",(e) => {
-    mouseDown = false;
-    let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
-    e.target.dispatchEvent(new TouchEvent("touchend",{cancelable:true,touches:[],changedTouches:touches}));
-  });
-  document.getElementsByTagName("canvas")[0].addEventListener("touchstart", (e) => {
-    console.log([...e.changedTouches]);
-    [...e.changedTouches].forEach((t) => {
-      let p = v(t.pageX, t.pageY);
-      let s1 = p5.Vector.sub(p,v(40,145));
-      if(s1.x > -15 && s1.x < 15 && s1.y > -15 && s1.y < 15 && !pause) {
-        pauseGame();
-      }
-      if (prefers.showTouchControls) {
-        if (p5.Vector.sub(p, v(125, size.y + prefers.touchControlHeight / 2)).mag() <= 60) {
-          e.preventDefault();
-          console.log("movedown");
-          movementTouch = { id: t.identifier, pos: p5.Vector.sub(p, v(125, size.y + prefers.touchControlHeight / 2)), down: true };
-        }
-        if (p5.Vector.sub(p, v(size.x - 125, size.y + prefers.touchControlHeight / 2)).mag() <= 60) {
-          e.preventDefault();
-          console.log("dirdown");
-          dirTouch = { id: t.identifier, pos: p5.Vector.sub(p, v(size.x - 125, size.y + prefers.touchControlHeight / 2)), down: true };
-        }
-        s1 = p5.Vector.sub(p, v(size.x / 2, size.y + prefers.touchControlHeight / 2));
-        if (s1.x > -30 && s1.x < 30 && s1.y > -30 && s1.y < 30) {
-          console.log("firedown");
-          player.toggleFire = !player.toggleFire;
-        }
-      }
-    });
-  });
-  document.getElementsByTagName("canvas")[0].addEventListener("touchmove", (e) => {
-    if (prefers.showTouchControls) {
-      [...e.changedTouches].forEach((t) => {
-        let p = v(t.pageX, t.pageY);
-        if (t.identifier == movementTouch.id) {
-          e.preventDefault();
-          movementTouch.pos = p5.Vector.sub(p, v(125, size.y + prefers.touchControlHeight / 2));
-          if (movementTouch.pos.mag() > 40) {
-            movementTouch.pos.normalize();
-            movementTouch.pos.mult(40);
-          }
-        }
-        if (t.identifier == dirTouch.id) {
-          e.preventDefault();
-          dirTouch.pos = p5.Vector.sub(p, v(size.x - 125, size.y + prefers.touchControlHeight / 2));
-          dirTouch.pos.normalize();
-          dirTouch.pos.mult(40);
-        }
-      });
-    }
-  });
-  document.getElementsByTagName("canvas")[0].addEventListener("touchend", (e) => {
-    if(prefers.showTouchControls) {
-      [...e.changedTouches].forEach((t) => {
-        if (t.identifier == movementTouch.id) {
-          e.preventDefault();
-          movementTouch.down = false;
-          movementTouch.id = -1;
-          movementTouch.pos = v(0, 0);
-        }
-        if (t.identifier == dirTouch.id) {
-          e.preventDefault();
-          dirTouch.down = false;
-          dirTouch.id = -1;
-        }
-      });
-    }
-  });
 }
 
 function draw() {
   clampTime = Math.min(deltaTime, 100);
-  tick++;
+  if(started) {
+    tick++;
 
-  if (tick < 15) asteroidSpawnTimer = 0;
+    if (tick < 15) asteroidSpawnTimer = 0;
 
-  if (!pause && !levelUp) {
-    if (bossFight) {
-      if (asteroids.filter(e => e.boss && e.original).length == 0) {
-        bossFight = false;
-      }
-    } else {
-      if (asteroidSpawnTimer <= 0 && player.alive) {
-        asteroidSpawnTimer = asteroidSpawnRate;
-        asteroidSpawnRate *= 0.925;
-        if (asteroidSpawnRate < 50) asteroidSpawnRate = 50;
-        asteroidSpeed += 0.005;
-        asteroids.push({
-          pos: p5.Vector.add(player.pos, v(size.x / 2, 0).rotate(random() * 2 * PI)),
-          vel: v(random() * asteroidSpeed, 0).rotate(random() * 2 * PI),
-          size: 40, hp: 2 + floor(timer / 100),
-          original: true
-        });
+    if (!pause && !levelUp) {
+      if (bossFight) {
+        if (asteroids.filter(e => e.boss && e.original).length == 0) {
+          bossFight = false;
+        }
       } else {
-        asteroidSpawnTimer -= 0.03 * clampTime;
-      }
-    }
-    if (player.alive) {
-      bosses.forEach((e, i) => {
-        if (timer >= e.time && maxFight < i) {
-          asteroids.push(JSON.parse(JSON.stringify(e.data)));
-          bossFight = true;
-          maxFight = i;
-          boss = asteroids[asteroids.length - 1];
-          boss.original = true;
-          boss.boss = true;
-          boss.type = i;
-          for (let key in boss) {
-            let prop = boss[key];
-            if (key == "pos" && typeof prop == "number") {
-              boss.pos = p5.Vector.add(player.pos, v(boss.pos, 0).rotate(random() * 2 * PI));
-            }
-            if (key == "vel" && typeof prop == "number") {
-              boss.vel = v(boss.vel, 0).rotate(random() * 2 * PI);
-            }
-          }
-        }
-      });
-    }
-    player.pos.add(p5.Vector.mult(player.vel, clampTime * 0.03));
-    player.vel.mult(0.95);
-    if (player.alive) {
-      timer += clampTime * 0.001;
-
-      let joy = v(keyIsDown(68) - keyIsDown(65), keyIsDown(83) - keyIsDown(87)).normalize();
-      if (prefers.controls == 0) {
-        let dst = v(joy.y, 0).rotate(player.dir).mult(-player.speed);
-        player.vel.add(dst);
-        player.dirVel += joy.x * 0.03;
-        player.dir += player.dirVel * clampTime * 0.03;
-        player.dirVel *= 0.9;
-      } else if (prefers.controls == 1) {
-        player.vel.add(p5.Vector.mult(joy, player.speed + 0.1));
-        player.dir = p5.Vector.sub(v(mouseX, mouseY), p5.Vector.div(size, 2)).heading();
-      } else if (prefers.controls == 2) {
-        player.vel.add(p5.Vector.mult(joy, player.speed + 0.1));
-        let newDir = v(keyIsDown(39) - keyIsDown(37), keyIsDown(40) - keyIsDown(38));
-        if (newDir.mag() > 0) {
-          newDir = newDir.heading();
-          let dst = player.dir - newDir;
-          if (dst > PI) dst -= 2 * PI;
-          if (dst < -PI) dst += 2 * PI;
-          dst *= 0.1;
-          player.dir -= dst;
-        }
-      }
-      if (prefers.showTouchControls) {
-        player.vel.add(p5.Vector.mult(movementTouch.pos, (player.speed + 0.1) / 40));
-        player.dir = dirTouch.pos.heading();
-      }
-      player.iframe -= clampTime * 0.03;
-      if (player.pos.x > world.size.x / 2) {
-        player.pos.x -= world.size.x;
-      }
-      if (player.pos.y > world.size.y / 2) {
-        player.pos.y -= world.size.y;
-      }
-      if (player.pos.x < -world.size.x / 2) {
-        player.pos.x += world.size.x;
-      }
-      if (player.pos.y < -world.size.y / 2) {
-        player.pos.y += world.size.y;
-      }
-      if (player.hp > player.maxHp) player.hp = player.maxHp;
-      if (player.xp > player.lvlUp) {
-        player.lvl++;
-        player.xp -= player.lvlUp;
-        player.lvlUp += 5;
-        player.lvlUp *= 1.1;
-        player.score.other += 1000;
-        player.hp += 1;
-        levelUp = true;
-      }
-      if (levelUp && levelUpgrades.length == 0) {
-        startLevelUp();
-      }
-      if ((((keyIsDown(32) || mouseIsPressed) && !prefers.showTouchControls) || player.toggleFire) && player.reload <= 0) {
-        let num = round(player.multishot);
-        for (let i = 0; i < num; i++) {
-          player.stats.bulletsFired++;
-          bullets.push({
-            pos: player.pos.copy(),
-            vel: p5.Vector.add(player.vel, v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2)),
-            dst: v(0, 0),
-            playerVel: player.vel.copy(),
-            dmg: player.dmg * (0.7 / (1 + abs(i - (num - 1) / 2)) + 0.3)
+        if (asteroidSpawnTimer <= 0 && player.alive) {
+          asteroidSpawnTimer = asteroidSpawnRate;
+          asteroidSpawnRate *= 0.925;
+          if (asteroidSpawnRate < 50) asteroidSpawnRate = 50;
+          asteroidSpeed += 0.005;
+          asteroids.push({
+            pos: p5.Vector.add(player.pos, v(size.x / 2, 0).rotate(random() * 2 * PI)),
+            vel: v(random() * asteroidSpeed, 0).rotate(random() * 2 * PI),
+            size: 40, hp: 2 + floor(timer / 100),
+            original: true
           });
-          bullets[bullets.length - 1].pos.add(p5.Vector.mult(p5.Vector.sub(bullets[bullets.length - 1].vel, player.vel), 1.5));
+        } else {
+          asteroidSpawnTimer -= 0.03 * clampTime;
         }
-        player.reload = player.reloadTime;
-      } else {
-        player.reload -= clampTime * 0.03;
       }
-      if (player.hp <= 0) {
-
-        player.alive = false;
-        world.screenshake.set(8, 8, 1)
-        explosions.push({ pos: player.pos.copy(), vel: player.vel.copy(), size: 70, tick: 0 });
-        bullets = [];
-
-        showDeathScreen();
-
-        //https://stackoverflow.com/questions/16449295/how-to-sum-the-values-of-a-javascript-object
-        if (Object.values(player.score).reduce((a, b) => a + b, 0) >= Object.values(JSON.parse((localStorage.getItem("highscore")))).reduce((a, b) => a + b, 0)) localStorage.setItem("highscore", JSON.stringify(player.score));
-      }
-    }
-
-    asteroids.forEach((e, i) => {
-      if (!Object.hasOwn(e, "boss")) e.boss = false;
-      if (!Object.hasOwn(e, "closest")) e.closest = v(0, 0);
-      if (e.vel.mag() > 10 + e.followPlayer * 10) {
-        e.vel.normalize();
-        e.vel.mult(10 + e.followPlayer * 10);
-      }
-      if (e.hp <= 0) {
-        astSplit(e, random() * 2 * PI);
-        asteroids.splice(i, 1);
-        i--;
-      }
-      e.pos.add(e.vel);
-      if (e.pos.x > world.size.x / 2) {
-        e.pos.x -= world.size.x;
-      }
-      if (e.pos.y > world.size.y / 2) {
-        e.pos.y -= world.size.y;
-      }
-      if (e.pos.x < -world.size.x / 2) {
-        e.pos.x += world.size.x;
-      }
-      if (e.pos.y < -world.size.y / 2) {
-        e.pos.y += world.size.y;
-      }
-
       if (player.alive) {
-        let dst = p5.Vector.sub(e.pos, player.pos);
-        dst.add(e.closest);
-        if (dst.mag() < e.size / 2 + 25 + player.shield * 10) {
-          if (player.iframe <= 0) {
-            if (player.shield) player.shield = false;
-            else player.hp--;
-            e.hp--;
-            player.iframe = 10;
+        bosses.forEach((e, i) => {
+          if (timer >= e.time && maxFight < i) {
+            asteroids.push(JSON.parse(JSON.stringify(e.data)));
+            bossFight = true;
+            maxFight = i;
+            boss = asteroids[asteroids.length - 1];
+            boss.original = true;
+            boss.boss = true;
+            boss.type = i;
+            for (let key in boss) {
+              let prop = boss[key];
+              if (key == "pos" && typeof prop == "number") {
+                boss.pos = p5.Vector.add(player.pos, v(boss.pos, 0).rotate(random() * 2 * PI));
+              }
+              if (key == "vel" && typeof prop == "number") {
+                boss.vel = v(boss.vel, 0).rotate(random() * 2 * PI);
+              }
+            }
           }
-          dst = dst.normalize();
-          dst.mult(e.size / 2 + 25);
-          e.pos = player.pos.copy();
-          e.pos.add(dst);
-          e.vel.sub(player.vel);
-          e.vel.reflect(dst);
-          e.pos.add(e.vel);
-          e.vel.add(player.vel);
-          if (e.hp <= 0) {
-            astSplit(e, dst.heading() + PI);
-            asteroids.splice(i, 1);
-            i--;
+        });
+      }
+      player.pos.add(p5.Vector.mult(player.vel, clampTime * 0.03));
+      player.vel.mult(0.95);
+      if (player.alive) {
+        timer += clampTime * 0.001;
+
+        let joy = v(keyIsDown(68) - keyIsDown(65), keyIsDown(83) - keyIsDown(87)).normalize();
+        if (prefers.controls == 0) {
+          let dst = v(joy.y, 0).rotate(player.dir).mult(-player.speed*clampTime*0.03);
+          player.vel.add(dst);
+          player.dirVel += joy.x * 0.0009 * clampTime;
+          player.dir += player.dirVel * clampTime * 0.03;
+          player.dirVel *= 0.9;
+        } else if (prefers.controls == 1) {
+          player.vel.add(p5.Vector.mult(joy, (player.speed + 0.1) * 0.03 * clampTime));
+          player.dir = p5.Vector.sub(v(mouseX, mouseY), p5.Vector.div(size, 2)).heading();
+        } else if (prefers.controls == 2) {
+          player.vel.add(p5.Vector.mult(joy, (player.speed + 0.1) * 0.03 * clampTime));
+          let newDir = v(keyIsDown(39) - keyIsDown(37), keyIsDown(40) - keyIsDown(38));
+          if (newDir.mag() > 0) {
+            newDir = newDir.heading();
+            let dst = player.dir - newDir;
+            if (dst > PI) dst -= 2 * PI;
+            if (dst < -PI) dst += 2 * PI;
+            dst *= 0.1;
+            player.dir -= dst;
           }
-        } else if (e.followPlayer > 0) {
-          dst.normalize();
-          dst.mult(e.followPlayer);
-          e.vel.sub(dst);
+        }
+        if (prefers.showTouchControls) {
+          player.vel.add(p5.Vector.mult(movementTouch.pos, (player.speed + 0.1) / 40 * 0.03 * clampTime));
+          player.dir = dirTouch.pos.heading();
+        }
+        player.iframe -= clampTime * 0.03;
+        if (player.pos.x > world.size.x / 2) {
+          player.pos.x -= world.size.x;
+        }
+        if (player.pos.y > world.size.y / 2) {
+          player.pos.y -= world.size.y;
+        }
+        if (player.pos.x < -world.size.x / 2) {
+          player.pos.x += world.size.x;
+        }
+        if (player.pos.y < -world.size.y / 2) {
+          player.pos.y += world.size.y;
+        }
+        if (player.hp > player.maxHp) player.hp = player.maxHp;
+        if (player.xp > player.lvlUp) {
+          player.lvl++;
+          player.xp -= player.lvlUp;
+          player.lvlUp += 5;
+          player.lvlUp *= 1.1;
+          player.score.other += 1000;
+          player.hp += 1;
+          levelUp = true;
+        }
+        if (levelUp && levelUpgrades.length == 0) {
+          startLevelUp();
+        }
+        if ((((keyIsDown(32) || mouseIsPressed) && !prefers.showTouchControls) || player.toggleFire) && player.reload <= 0) {
+          let num = round(player.multishot);
+          for (let i = 0; i < num; i++) {
+            player.stats.bulletsFired++;
+            bullets.push({
+              pos: player.pos.copy(),
+              vel: p5.Vector.add(player.vel, v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2)),
+              dst: v(0, 0),
+              playerVel: player.vel.copy(),
+              dmg: player.dmg * (0.7 / (1 + abs(i - (num - 1) / 2)) + 0.3)
+            });
+            bullets[bullets.length - 1].pos.add(p5.Vector.mult(p5.Vector.sub(bullets[bullets.length - 1].vel, player.vel), 1.5));
+          }
+          player.reload = player.reloadTime;
+        } else {
+          player.reload -= clampTime * 0.03;
+        }
+        if (player.hp <= 0) {
+
+          player.alive = false;
+          world.screenshake.set(8, 8, 1)
+          explosions.push({ pos: player.pos.copy(), vel: player.vel.copy(), size: 70, tick: 0 });
+          bullets = [];
+
+          showDeathScreen();
+
+          //https://stackoverflow.com/questions/16449295/how-to-sum-the-values-of-a-javascript-object
+          if (Object.values(player.score).reduce((a, b) => a + b, 0) >= Object.values(JSON.parse((localStorage.getItem("highscore")))).reduce((a, b) => a + b, 0)) localStorage.setItem("highscore", JSON.stringify(player.score));
         }
       }
-    });
-    tickBullets();
-    explosions.forEach((e, i) => {
-      if (e.tick >= 2) {
-        explosions.splice(i, 1);
-      }
-      e.tick += clampTime * 0.04 / Math.pow(e.size, 0.3);
-    });
-  }
-  if (levelUp) {
-    pause = false;
-    document.getElementById("pauseMenu").close();
-  }
 
+      asteroids.forEach((e, i) => {
+        if (!Object.hasOwn(e, "boss")) e.boss = false;
+        if (!Object.hasOwn(e, "closest")) e.closest = v(0, 0);
+        if (e.vel.mag() > 10 + e.followPlayer * 10) {
+          e.vel.normalize();
+          e.vel.mult(10 + e.followPlayer * 10);
+        }
+        if (e.hp <= 0) {
+          astSplit(e, random() * 2 * PI);
+          asteroids.splice(i, 1);
+          i--;
+        }
+        e.pos.add(p5.Vector.mult(e.vel,clampTime * 0.03));
+        if (e.pos.x > world.size.x / 2) {
+          e.pos.x -= world.size.x;
+        }
+        if (e.pos.y > world.size.y / 2) {
+          e.pos.y -= world.size.y;
+        }
+        if (e.pos.x < -world.size.x / 2) {
+          e.pos.x += world.size.x;
+        }
+        if (e.pos.y < -world.size.y / 2) {
+          e.pos.y += world.size.y;
+        }
 
-  background(0);
-  stroke(150);
-  strokeWeight(1);
-  let s = 100;
-  for (let x = (Math.round(s - player.pos.x) % s + s) % s; x <= size.x; x += s) {
-    line(x, 0, x, size.y);
-  }
-  for (let y = (Math.round(s - player.pos.y) % s + s) % s; y <= size.y; y += s) {
-    line(0, y, size.x, y);
-  }
-  //calculating screenshake
-  let screenModX = random(-world.screenshake.intensityX, world.screenshake.intensityX)
-  let screenModY = random(-world.screenshake.intensityY, world.screenshake.intensityY)
-
-  world.screenshake.timeRemaining -= clampTime / 1000
-  if (world.screenshake.timeRemaining > 0 && prefers.doScreenshake) {
-    translate(screenModX, screenModY)
-  }
-  stroke(255);
-  strokeWeight(5);
-  noFill();
-  push();
-  translate(size.x / 2, size.y / 2);
-  push();
-  translate(-player.pos.x, -player.pos.y);
-  world.pickups.forEach((e) => { e.closest = v(0, 0) });
-  for (let xOff = -world.size.x; xOff <= world.size.x; xOff += world.size.x) {
-    for (let yOff = -world.size.y; yOff <= world.size.y; yOff += world.size.y) {
-      push();
-      translate(xOff, yOff);
+        if (player.alive) {
+          let dst = p5.Vector.sub(e.pos, player.pos);
+          dst.add(e.closest);
+          if (dst.mag() < e.size / 2 + 25 + player.shield * 10) {
+            if (player.iframe <= 0) {
+              if (player.shield) player.shield = false;
+              else player.hp--;
+              e.hp--;
+              player.iframe = 10;
+            }
+            dst = dst.normalize();
+            dst.mult(e.size / 2 + 25);
+            e.pos = player.pos.copy();
+            e.pos.add(dst);
+            e.vel.sub(player.vel);
+            e.vel.reflect(dst);
+            e.pos.add(e.vel);
+            e.vel.add(player.vel);
+            if (e.hp <= 0) {
+              astSplit(e, dst.heading() + PI);
+              asteroids.splice(i, 1);
+              i--;
+            }
+          } else if (e.followPlayer > 0) {
+            dst.normalize();
+            dst.mult(e.followPlayer * 0.03 * clampTime);
+            e.vel.sub(dst);
+          }
+        }
+      });
+      tickBullets();
       explosions.forEach((e, i) => {
-        fill(230);
-        stroke(200);
-        strokeWeight(e.size * 0.1);
-        ellipse(e.pos.x, e.pos.y, e.tick * e.size, e.tick * e.size);
+        if (e.tick >= 2) {
+          explosions.splice(i, 1);
+        }
+        e.tick += clampTime * 0.04 / Math.pow(e.size, 0.3);
       });
-      pop();
     }
-  }
-  for (let xOff = -world.size.x; xOff <= world.size.x; xOff += world.size.x) {
-    for (let yOff = -world.size.y; yOff <= world.size.y; yOff += world.size.y) {
-      push();
-      translate(xOff, yOff);
-      stroke(255);
-      strokeWeight(5);
-      fill(0);
-      world.pickups.forEach((pickup, i) => {
+    if (levelUp) {
+      pause = false;
+      document.getElementById("pauseMenu").close();
+    }
+
+
+    background(0);
+    stroke(150);
+    strokeWeight(1);
+    let s = 100;
+    for (let x = (Math.round(s - player.pos.x) % s + s) % s; x <= size.x; x += s) {
+      line(x, 0, x, size.y);
+    }
+    for (let y = (Math.round(s - player.pos.y) % s + s) % s; y <= size.y; y += s) {
+      line(0, y, size.x, y);
+    }
+    //calculating screenshake
+    let screenModX = random(-world.screenshake.intensityX, world.screenshake.intensityX)
+    let screenModY = random(-world.screenshake.intensityY, world.screenshake.intensityY)
+
+    world.screenshake.timeRemaining -= clampTime / 1000
+    if (world.screenshake.timeRemaining > 0 && prefers.doScreenshake) {
+      translate(screenModX, screenModY)
+    }
+    stroke(255);
+    strokeWeight(5);
+    noFill();
+    push();
+    translate(size.x / 2, size.y / 2);
+    push();
+    translate(-player.pos.x, -player.pos.y);
+    world.pickups.forEach((e) => { e.closest = v(0, 0) });
+    for (let xOff = -world.size.x; xOff <= world.size.x; xOff += world.size.x) {
+      for (let yOff = -world.size.y; yOff <= world.size.y; yOff += world.size.y) {
         push();
-        translate(pickup.pos);
-        pickupData[pickup.type].draw();
+        translate(xOff, yOff);
+        explosions.forEach((e, i) => {
+          fill(230);
+          stroke(200);
+          strokeWeight(e.size * 0.1);
+          ellipse(e.pos.x, e.pos.y, e.tick * e.size, e.tick * e.size);
+        });
         pop();
-        let pos = p5.Vector.add(pickup.pos, v(xOff, yOff));
-        if (p5.Vector.sub(pos, player.pos).mag() <= 50) {
-          world.pickups.splice(i, 1);
-          pickupData[pickup.type].collect(pickup);
-          player.stats.pickups++;
-        }
-        if (p5.Vector.sub(pos, player.pos).mag() < p5.Vector.sub(p5.Vector.add(pickup.pos, pickup.closest), player.pos).mag()) {
-          pickup.closest = v(xOff, yOff);
-        }
-      });
-      asteroids.sort((a, b) => a.size - b.size).forEach((a) => {
-        let p = p5.Vector.sub(p5.Vector.add(a.pos, v(xOff, yOff)), player.pos);
-        if (p.x > -size.x / 2 - a.size / 2 && p.x < size.x / 2 + a.size / 2 && p.y > -size.y / 2 - a.size / 2 && p.y < size.y / 2 + a.size / 2) {
-          push();
-          if (a.followPlayer > 0) {
-            stroke("rgb(255,150,150)");
-            fill("rgba(100,0,0,0.5)");
-          } else {
-            stroke(255);
-            fill("rgba(0,0,0,0.5)");
-          }
-          ellipse(a.pos.x, a.pos.y, a.size, a.size);
-          if (a.boss) {
-            stroke(0);
-            fill(50);
-            strokeWeight(3);
-            let w = a.size + 10;
-            rect(a.pos.x - w / 2, a.pos.y + a.size / 2 + 10, w, 15);
-            let nw = w * a.hp / bosses[a.type].data.hp;
-            fill("rgb(250,50,0)");
-            rect(a.pos.x - w / 2, a.pos.y + a.size / 2 + 10, nw, 15);
-          }
-          pop();
-        }
-        if (p5.Vector.sub(p5.Vector.add(a.pos, v(xOff, yOff)), player.pos).mag() < p5.Vector.sub(p5.Vector.add(a.pos, a.closest), player.pos).mag()) {
-          a.closest = v(xOff, yOff);
-        }
-      });
-      bullets.forEach((b) => {
-        strokeWeight(player.projectileSize);
-        line(b.pos.x, b.pos.y, b.pos.x - (b.vel.x - b.playerVel.x), b.pos.y - (b.vel.y - b.playerVel.y));
-      });
-      pop();
+      }
     }
-  }
-  pop();
-  if (player.alive) {
-    push();
-    rotate(player.dir);
-    push();
-    if (prefers.controls == 0 || prefers.controls == 2) {
-      strokeWeight(2);
-      for (let dst = 30; dst < 500; dst += 10) {
-        stroke("rgba(255, 255, 255, " + 75 / (dst + 60) + ")");
-        line(dst, 0, dst + 5, 0);
+    for (let xOff = -world.size.x; xOff <= world.size.x; xOff += world.size.x) {
+      for (let yOff = -world.size.y; yOff <= world.size.y; yOff += world.size.y) {
+        push();
+        translate(xOff, yOff);
+        stroke(255);
+        strokeWeight(5);
+        fill(0);
+        world.pickups.forEach((pickup, i) => {
+          push();
+          translate(pickup.pos);
+          pickupData[pickup.type].draw();
+          pop();
+          let pos = p5.Vector.add(pickup.pos, v(xOff, yOff));
+          if (p5.Vector.sub(pos, player.pos).mag() <= 50) {
+            world.pickups.splice(i, 1);
+            pickupData[pickup.type].collect(pickup);
+            player.stats.pickups++;
+          }
+          if (p5.Vector.sub(pos, player.pos).mag() < p5.Vector.sub(p5.Vector.add(pickup.pos, pickup.closest), player.pos).mag()) {
+            pickup.closest = v(xOff, yOff);
+          }
+        });
+        asteroids.sort((a, b) => a.size - b.size).forEach((a) => {
+          let p = p5.Vector.sub(p5.Vector.add(a.pos, v(xOff, yOff)), player.pos);
+          if (p.x > -size.x / 2 - a.size / 2 && p.x < size.x / 2 + a.size / 2 && p.y > -size.y / 2 - a.size / 2 && p.y < size.y / 2 + a.size / 2) {
+            push();
+            if (a.followPlayer > 0) {
+              stroke("rgb(255,150,150)");
+              fill("rgba(100,0,0,0.5)");
+            } else {
+              stroke(255);
+              fill("rgba(0,0,0,0.5)");
+            }
+            ellipse(a.pos.x, a.pos.y, a.size, a.size);
+            if (a.boss) {
+              stroke(0);
+              fill(50);
+              strokeWeight(3);
+              let w = a.size + 10;
+              rect(a.pos.x - w / 2, a.pos.y + a.size / 2 + 10, w, 15);
+              let nw = w * a.hp / bosses[a.type].data.hp;
+              fill("rgb(250,50,0)");
+              rect(a.pos.x - w / 2, a.pos.y + a.size / 2 + 10, nw, 15);
+            }
+            pop();
+          }
+          if (p5.Vector.sub(p5.Vector.add(a.pos, v(xOff, yOff)), player.pos).mag() < p5.Vector.sub(p5.Vector.add(a.pos, a.closest), player.pos).mag()) {
+            a.closest = v(xOff, yOff);
+          }
+        });
+        bullets.forEach((b) => {
+          strokeWeight(player.projectileSize);
+          line(b.pos.x, b.pos.y, b.pos.x - (b.vel.x - b.playerVel.x), b.pos.y - (b.vel.y - b.playerVel.y));
+        });
+        pop();
       }
     }
     pop();
-    if (player.iframe > 0) fill(255);
-    else fill(0);
-    triangle(-15, -15, -15, 15, 20, 0);
-    if (player.shield) {
-      fill("rgba(50, 200, 250, 0.3)");
-      stroke("rgb(0, 150, 250)");
-      strokeWeight(5);
-      circle(0, 0, 65);
+    if (player.alive) {
+      push();
+      rotate(player.dir);
+      push();
+      if (prefers.controls == 0 || prefers.controls == 2) {
+        strokeWeight(2);
+        for (let dst = 30; dst < 500; dst += 10) {
+          stroke("rgba(255, 255, 255, " + 75 / (dst + 60) + ")");
+          line(dst, 0, dst + 5, 0);
+        }
+      }
+      pop();
+      if (player.iframe > 0) fill(255);
+      else fill(0);
+      triangle(-15, -15, -15, 15, 20, 0);
+      if (player.shield) {
+        fill("rgba(50, 200, 250, 0.3)");
+        stroke("rgb(0, 150, 250)");
+        strokeWeight(5);
+        circle(0, 0, 65);
+      }
+      pop();
+    }
+    if (player.alive) {
+      drawPointerArrows();
+    } else {
+      if (keyIsDown(32) && !player.restart) {
+        setupVars();
+        document.getElementById("deathDialog").close()
+      }
     }
     pop();
-  }
-  if (player.alive) {
-    drawPointerArrows();
-  } else {
-    if (keyIsDown(32) && !player.restart) {
-      setup();
-      document.getElementById("deathDialog").close()
+    if (player.alive) {
+      drawHUD();
     }
-  }
-  pop();
-  if (player.alive) {
-    drawHUD();
-  }
 
-  if (pause) {
-    drawPauseMenu();
-  }
+    if (pause) {
+      drawPauseMenu();
+    }
 
-  fill(255);
-  stroke(255);
-  strokeWeight(0.5);
-  textSize(15);
-  textAlign(RIGHT);
-  textFont("monospace");
-  textStyle(NORMAL);
-  text(round(1000 / deltaTime), size.x - 10, 20);
+    fill(255);
+    stroke(255);
+    strokeWeight(0.5);
+    textSize(15);
+    textAlign(RIGHT);
+    textFont("monospace");
+    textStyle(NORMAL);
+    text(round(1000 / deltaTime), size.x - 10, 20);
 
 
-  stroke(250);
-  strokeWeight(4);
-  push();
-  translate(mouseX, mouseY);
-  if (prefers.controls == 1 && !pause && !levelUp && (!prefers.showTouchControls || (prefers.showTouchControls && mouseY <= size.y))) {
-    line(-15, -10, -10, -15);
-    line(15, 10, 10, 15);
-    line(-15, 10, -10, 15);
-    line(15, -10, 10, -15);
-    line(-5, 0, 5, 0);
-    line(0, -5, 0, 5);
-    canvas.style.cursor = "none";
-  } else if (prefers.showTouchControls && mouseY > size.y - 5 && mouseY < size.y + 5) {
-    canvas.style.cursor = "row-resize";
-  } else {
-    canvas.style.cursor = "unset";
-  }
-  pop();
-
-  player.restart = keyIsDown(32);
-
-  fill(90);
-  stroke(70);
-  strokeWeight(5);
-  rect(25,120,30,30,5);
-  line(35,130,35,140);
-  line(45,130,45,140);
-
-  if (prefers.showTouchControls) {
+    stroke(250);
+    strokeWeight(4);
     push();
-    translate(0, size.y + prefers.touchControlHeight / 2);
+    translate(mouseX, mouseY);
+    if (prefers.controls == 1 && !pause && !levelUp && (!prefers.showTouchControls || (prefers.showTouchControls && mouseY <= size.y))) {
+      line(-15, -10, -10, -15);
+      line(15, 10, 10, 15);
+      line(-15, 10, -10, 15);
+      line(15, -10, 10, -15);
+      line(-5, 0, 5, 0);
+      line(0, -5, 0, 5);
+      canvas.style.cursor = "none";
+    } else if (prefers.showTouchControls && mouseY > size.y - 5 && mouseY < size.y + 5) {
+      canvas.style.cursor = "row-resize";
+    } else {
+      canvas.style.cursor = "unset";
+    }
+    pop();
+
+    player.restart = keyIsDown(32);
+
+    fill(90);
+    stroke(70);
+    strokeWeight(5);
+    rect(25,120,30,30,5);
+    line(35,130,35,140);
+    line(45,130,45,140);
+
+    if (prefers.showTouchControls) {
+      push();
+      translate(0, size.y + prefers.touchControlHeight / 2);
+      fill(0);
+      stroke(50);
+      strokeWeight(5);
+      rect(0, -prefers.touchControlHeight / 2, size.x, prefers.touchControlHeight);
+      //movement stick
+      fill(80);
+      stroke(70);
+      strokeWeight(10);
+      circle(125, 0, 100);
+      fill(120);
+      stroke(110);
+      strokeWeight(5);
+      circle(125 + movementTouch.pos.x, movementTouch.pos.y, 30);
+      //direction stick
+      fill(80);
+      stroke(70);
+      strokeWeight(10);
+      circle(size.x - 125, 0, 100);
+      fill(120);
+      stroke(110);
+      strokeWeight(5);
+      circle(size.x - 125 + dirTouch.pos.x, dirTouch.pos.y, 30);
+      //toggle fire
+      fill(player.toggleFire ? 120 : 80);
+      stroke(player.toggleFire ? 110 : 70);
+      strokeWeight(10);
+      rect(size.x / 2 - 30, -30, 60, 60, 5);
+      pop();
+    }
+  } else {
+    background(0);
+    push();
+    translate(innerWidth/2,innerHeight/2);
     fill(0);
-    stroke(50);
+    stroke(250);
     strokeWeight(5);
-    rect(0, -prefers.touchControlHeight / 2, size.x, prefers.touchControlHeight);
-    //movement stick
-    fill(80);
-    stroke(70);
-    strokeWeight(10);
-    circle(125, 0, 100);
-    fill(120);
-    stroke(110);
-    strokeWeight(5);
-    circle(125 + movementTouch.pos.x, movementTouch.pos.y, 30);
-    //direction stick
-    fill(80);
-    stroke(70);
-    strokeWeight(10);
-    circle(size.x - 125, 0, 100);
-    fill(120);
-    stroke(110);
-    strokeWeight(5);
-    circle(size.x - 125 + dirTouch.pos.x, dirTouch.pos.y, 30);
-    //toggle fire
-    fill(player.toggleFire ? 120 : 80);
-    stroke(player.toggleFire ? 110 : 70);
-    strokeWeight(10);
-    rect(size.x / 2 - 30, -30, 60, 60, 5);
+    triangle(-15,-15,-15,15,20,0);
     pop();
   }
 }
@@ -1235,9 +1258,6 @@ function astSplit(a, dir) {
   }
 }
 
-window.onblur = () => {
-  if (!levelUp && !pause) pauseGame();
-}
 document.addEventListener("keydown", (e) => {
   if (e.key == "Escape") {
     pause = !pause;

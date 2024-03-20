@@ -92,6 +92,10 @@ dialog::backdrop {
   background-color: rgba(0, 0, 0, 0.5);
 }
 
+#startMenu::backdrop {
+  background-color: transparent;
+}
+
 #choices>button {
   width: 300px;
   height: 90px;

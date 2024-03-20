@@ -11,7 +11,7 @@
   <script src="firebase.js" type="module"></script>
   <script src="p5.js"></script>
   <script src="main.js" defer></script>
-  <!-- <script src="https://cdn.jsdelivr.net/npm/eruda" onload="eruda.init()"></script> -->
+  <script src="https://cdn.jsdelivr.net/npm/eruda" onload="eruda.init()"></script>
 </head>
 
 <body>
@@ -61,11 +61,17 @@
     <span>
 
     </span>
-    <button onclick="setup(); document.getElementById('deathDialog').close()">Restart</button>
+    <button onclick="setupVars(); document.getElementById('deathDialog').close()">Restart</button>
     <div id="leaderboard">
     </div>
     <button id="loadMoreButton">Load More</button>
   </dialog>
+  <dialog id="startMenu">
+    <h1>Asteroids</h1>
+    <h1>&nbsp;</h1>
+    <h1>&nbsp;</h1>
+    <button id="startButton">Play</button>
+    <p>&nbsp;</p>
+  </dialog>
 </body>
-
 </html>
