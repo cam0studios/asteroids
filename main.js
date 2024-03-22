@@ -3,6 +3,7 @@ const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
 document.getElementById("deathDialog").addEventListener("cancel", (e) => e.preventDefault());
+document.getElementById("startMenu").addEventListener("cancel", (e) => e.preventDefault());
 const resolution = document.getElementById("resolution");
 
 const screenshakeModifier = 0.225,
@@ -452,10 +453,14 @@ function setupVars() {
     homingRange: 80,
     toggleFire: false
   };
+  for(let i = 0; i < 10; i+=0.3/(i+2)) {
+    asteroids.push({pos:v(i*world.size.mag()/10+100,0).rotate(random()*2*PI),vel:v(random()*3,0).rotate(random()*2*PI),size:random()*20+20});
+  }
   document.getElementById("startMenu").showModal();
   document.getElementById("startButton").addEventListener("click",() => {
     started = true;
     document.getElementById("startMenu").close();
+    asteroids = [];
   });
 
   // testing, all pickups
@@ -890,6 +895,13 @@ function draw() {
     fill(0);
     stroke(250);
     strokeWeight(5);
+    asteroids.sort((a,b) => a.size-b.size).forEach((e) => {
+      fill("rgba(0,0,0,0.5)");
+      ellipse(e.pos.x,e.pos.y,e.size,e.size);
+      e.pos.add(p5.Vector.mult(e.vel,clampTime*0.03));
+    });
+    background("rgba(0,0,0,0.5)");
+    fill(0);
     triangle(-15,-15,-15,15,20,0);
     pop();
   }
