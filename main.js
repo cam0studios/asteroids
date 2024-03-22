@@ -327,7 +327,7 @@ function setup() {
       [...e.changedTouches].forEach((t) => {
         let p = v(t.pageX, t.pageY);
         let s1 = p5.Vector.sub(p,v(40,145));
-        if(s1.x > -15 && s1.x < 15 && s1.y > -15 && s1.y < 15 && !pause) {
+        if(s1.x > -20 && s1.x < 20 && s1.y > -20 && s1.y < 20 && !pause) {
           pauseGame();
         }
         if (prefers.showTouchControls) {
@@ -543,7 +543,7 @@ function draw() {
             player.dir -= dst;
           }
         }
-        if (prefers.showTouchControls) {
+        if (prefers.showTouchControls && typeof movementTouch != "undefined" && typeof dirTouch != "undefined") {
           player.vel.add(p5.Vector.mult(movementTouch.pos, (player.speed + 0.1) / 40 * 0.03 * clampTime));
           player.dir = dirTouch.pos.heading();
         }
@@ -573,7 +573,7 @@ function draw() {
         if (levelUp && levelUpgrades.length == 0) {
           startLevelUp();
         }
-        if ((((keyIsDown(32) || mouseIsPressed) && !prefers.showTouchControls) || player.toggleFire) && player.reload <= 0) {
+        if ((((keyIsDown(32) || mouseIsPressed) && !(prefers.showTouchControls && typeof movementTouch != "undefined" && typeof dirTouch != "undefined")) || player.toggleFire) && player.reload <= 0) {
           let num = round(player.multishot);
           for (let i = 0; i < num; i++) {
             player.stats.bulletsFired++;
@@ -842,14 +842,16 @@ function draw() {
 
     player.restart = keyIsDown(32);
 
-    fill(90);
-    stroke(70);
-    strokeWeight(5);
-    rect(25,120,30,30,5);
-    line(35,130,35,140);
-    line(45,130,45,140);
+    if(typeof movementTouch != "undefined" && typeof dirTouch != "undefined") {
+      fill(0);
+      stroke(255);
+      strokeWeight(5);
+      rect(20,120,30,30,5);
+      line(30,130,30,140);
+      line(40,130,40,140);
+    }
 
-    if (prefers.showTouchControls) {
+    if (prefers.showTouchControls && typeof movementTouch != "undefined" && typeof dirTouch != "undefined") {
       push();
       translate(0, size.y + prefers.touchControlHeight / 2);
       fill(0);
@@ -898,7 +900,7 @@ function updateCanvasSize() {
   if (size.x > world.size.x - 10) size.x = world.size.x - 10;
   if (size.y > world.size.y - 10) size.y = world.size.y - 10;
   resizeCanvas(size.x, size.y, true);
-  if (prefers.showTouchControls) {
+  if (prefers.showTouchControls && typeof movementTouch != "undefined" && typeof dirTouch != "undefined") {
     size.y -= prefers.touchControlHeight;
   }
   document.querySelector(".p5Canvas").style.transform = `scale(${resolution.value}) translate(-50%, -50%)`
@@ -973,10 +975,14 @@ function pauseGame() {
     document.getElementById("quit").addEventListener("click", () => { player.hp = 0; pause = false; document.getElementById("pauseMenu").close() });
     document.getElementById("exit").addEventListener("click", () => noLoop());
     document.getElementById("control").addEventListener("click", () => { prefers.controls++; if (prefers.controls > 2) prefers.controls -= 3 });
+    if(!Object.hasOwn(window,"Touch")) {
+      document.getElementById("showTouchControls").parentElement.setAttribute("class","disabledText");
+      document.getElementById("showTouchControls").parentElement.innerHTML = "Your browser does not<br>support touch controls";
+    }
     [...document.getElementById("pauseMenu").querySelectorAll("label")].forEach(label => {
       const checkbox = label.querySelector("input[type='checkbox']")
       checkbox.checked = prefers[checkbox.id];
-    })
+    });
   }, 100);
 }
 

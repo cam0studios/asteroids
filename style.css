@@ -133,3 +133,11 @@ dialog::backdrop {
 .wrongVersion {
   color: lightgray;
 }
+.disabledText {
+  color: lightgray;
+  font-size: 15px;
+}
+
+#pauseMenu {
+  width: 30%;
+}
