@@ -1,4 +1,4 @@
-const version = "3.6.1";
+const version = "3.7.0";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -46,7 +46,8 @@ var asteroids,
   bossFight,
   movementTouch,
   dirTouch,
-  mouseDown;
+  mouseDown,
+  guardians = [];
 
 if (!localStorage.getItem("highscore")) {
   localStorage.setItem("highscore", 0);
@@ -70,7 +71,8 @@ if (!localStorage.getItem("username")) {
 
 function changeUsername() {
   username = prompt("Change your username", username) || defaultUsername;
-  localStorage.setItem("username", username)
+  localStorage.setItem("username", username);
+  setUser({},{username});
 }
 
 const upgrades = [
@@ -80,7 +82,8 @@ const upgrades = [
   { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "+1 Max Heath, Heal 2 Hearts", max: 5 },
   { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 },
   { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "+0.3 Bullet damage", max: 10 },
-  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.15, description: "Bullets automatically move toward targets", max: 5 },
+  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.25, description: "Bullets automatically move toward targets", max: 5 },
+  { name: "Guardian", f: () => { player.guardianLvl++ }, weight: 100.3, description: "Adds a spinning blade", max: 5 },
   // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 5}
 ];
 const pickupData = [
@@ -139,6 +142,7 @@ const pickupData = [
     collect: (e) => {
       player.score.other += 10000;
       player.stats.chests++;
+      player.changedStats.chests++;
       let gotten = [];
       for (let i = 0; i < e.amount; i++) {
         let choices = upgrades.map((u, i) => { return { e: u, i: i } }).filter(u => u.e.times < u.e.max).map(u => u.i);
@@ -176,12 +180,12 @@ const pickupData = [
     weight: 0.3,
     collect: (e) => {
       player.score.pickups += 350;
-      explosions.push({ pos: e.pos, vel: v(0, 0), size: 500, tick: 0 });
+      explosions.push({ pos: e.pos, vel: v(0, 0), size: 1000, tick: 0 });
       function split(c) {
         if (c > 0) {
           asteroids.forEach((a, i) => {
-            if (p5.Vector.sub(a.pos, e.pos).mag() <= 500) {
-              a.hp -= 5;
+            if (p5.Vector.sub(a.pos, e.pos).mag() <= 1000) {
+              a.hp -= 10;
               if (a.hp <= 0) {
                 setTimeout(() => {
                   astSplit(a, p5.Vector.sub(a.pos, e.pos).heading());
@@ -304,47 +308,43 @@ function setup() {
     if (!levelUp && !pause && started) pauseGame();
   }
   mouseDown = false;
-  if(Object.hasOwn(window,"Touch")) {
+  if (Object.hasOwn(window, "Touch")) {
     movementTouch = { id: -1, pos: v(0, 0), down: false };
     dirTouch = { id: -1, pos: v(0, 0), down: false };
-    document.getElementsByTagName("canvas")[0].addEventListener("mousedown",(e) => {
+    document.getElementsByTagName("canvas")[0].addEventListener("mousedown", (e) => {
       mouseDown = true;
-      let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
-      e.target.dispatchEvent(new TouchEvent("touchstart",{cancelable:true,touches:touches,changedTouches:touches}));
+      let touches = [new Touch({ identifier: 0, target: e.target, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY, pageX: e.pageX, pageY: e.pageY })];
+      e.target.dispatchEvent(new TouchEvent("touchstart", { cancelable: true, touches: touches, changedTouches: touches }));
     });
-    document.getElementsByTagName("canvas")[0].addEventListener("mousemove",(e) => {
-      if(mouseDown) {
-        let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
-        e.target.dispatchEvent(new TouchEvent("touchmove",{cancelable:true,touches:touches,changedTouches:touches}));
+    document.getElementsByTagName("canvas")[0].addEventListener("mousemove", (e) => {
+      if (mouseDown) {
+        let touches = [new Touch({ identifier: 0, target: e.target, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY, pageX: e.pageX, pageY: e.pageY })];
+        e.target.dispatchEvent(new TouchEvent("touchmove", { cancelable: true, touches: touches, changedTouches: touches }));
       }
     });
-    document.getElementsByTagName("canvas")[0].addEventListener("mouseup",(e) => {
+    document.getElementsByTagName("canvas")[0].addEventListener("mouseup", (e) => {
       mouseDown = false;
-      let touches = [new Touch({identifier:0,target:e.target,clientX:e.clientX,clientY:e.clientY,screenX:e.screenX,screenY:e.screenY,pageX:e.pageX,pageY:e.pageY})];
-      e.target.dispatchEvent(new TouchEvent("touchend",{cancelable:true,touches:[],changedTouches:touches}));
+      let touches = [new Touch({ identifier: 0, target: e.target, clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY, pageX: e.pageX, pageY: e.pageY })];
+      e.target.dispatchEvent(new TouchEvent("touchend", { cancelable: true, touches: [], changedTouches: touches }));
     });
     document.getElementsByTagName("canvas")[0].addEventListener("touchstart", (e) => {
-      console.log([...e.changedTouches]);
       [...e.changedTouches].forEach((t) => {
         let p = v(t.pageX, t.pageY);
-        let s1 = p5.Vector.sub(p,v(40,145));
-        if(s1.x > -20 && s1.x < 20 && s1.y > -20 && s1.y < 20 && !pause) {
+        let s1 = p5.Vector.sub(p, v(40, 145));
+        if (s1.x > -20 && s1.x < 20 && s1.y > -20 && s1.y < 20 && !pause) {
           pauseGame();
         }
         if (prefers.showTouchControls) {
           if (p5.Vector.sub(p, v(125, size.y + prefers.touchControlHeight / 2)).mag() <= 60) {
             e.preventDefault();
-            console.log("movedown");
             movementTouch = { id: t.identifier, pos: p5.Vector.sub(p, v(125, size.y + prefers.touchControlHeight / 2)), down: true };
           }
           if (p5.Vector.sub(p, v(size.x - 125, size.y + prefers.touchControlHeight / 2)).mag() <= 60) {
             e.preventDefault();
-            console.log("dirdown");
             dirTouch = { id: t.identifier, pos: p5.Vector.sub(p, v(size.x - 125, size.y + prefers.touchControlHeight / 2)), down: true };
           }
           s1 = p5.Vector.sub(p, v(size.x / 2, size.y + prefers.touchControlHeight / 2));
           if (s1.x > -30 && s1.x < 30 && s1.y > -30 && s1.y < 30) {
-            console.log("firedown");
             player.toggleFire = !player.toggleFire;
           }
         }
@@ -372,7 +372,7 @@ function setup() {
       }
     });
     document.getElementsByTagName("canvas")[0].addEventListener("touchend", (e) => {
-      if(prefers.showTouchControls) {
+      if (prefers.showTouchControls) {
         [...e.changedTouches].forEach((t) => {
           if (t.identifier == movementTouch.id) {
             e.preventDefault();
@@ -393,11 +393,19 @@ function setup() {
     dirTouch = undefined;
   }
   setupVars();
+  setInterval(() => {
+    console.log("set");
+    setUser({ relative: true }, JSON.parse(JSON.stringify(player.changedStats)));
+    Object.keys(player.changedStats).forEach((k) => {
+      player.changedStats[k] = 0;
+    });
+  }, 10000);
 }
 function setupVars() {
   upgrades.forEach((e) => {
     e.times = 0;
   });
+  setUser({ relative: true }, { runs: 1 });
   tick = 0;
   pause = false;
   bossFight = false;
@@ -435,10 +443,19 @@ function setupVars() {
       pickups: 0,
       chests: 0,
       bulletsFired: 0,
-      bulletsHit: 0
+      bulletsHit: 0,
+      upgrades: 0
+    },
+    changedStats: {
+      kills: 0,
+      pickups: 0,
+      chests: 0,
+      bulletsFired: 0,
+      bulletsHit: 0,
+      upgrades: 0
     },
     iframe: 0,
-    xp: 0,
+    xp: 100,
     lvlUp: 50,
     lvl: 0,
     speed: 0.4,
@@ -451,13 +468,15 @@ function setupVars() {
     dmg: 1,
     homing: 0,
     homingRange: 80,
-    toggleFire: false
+    toggleFire: false,
+    guardianLvl: 0,
+    guardianCooldown: 0
   };
-  for(let i = 0; i < 10; i+=0.3/(i+2)) {
-    asteroids.push({pos:v(i*world.size.mag()/10+100,0).rotate(random()*2*PI),vel:v(random()*3,0).rotate(random()*2*PI),size:random()*20+20});
+  for (let i = 0; i < 10; i += 0.3 / (i + 2)) {
+    asteroids.push({ pos: v(i * world.size.mag() / 10 + 100, 0).rotate(random() * 2 * PI), vel: v(random() * 3, 0).rotate(random() * 2 * PI), size: random() * 20 + 20 });
   }
   document.getElementById("startMenu").showModal();
-  document.getElementById("startButton").addEventListener("click",() => {
+  document.getElementById("startButton").addEventListener("click", () => {
     started = true;
     document.getElementById("startMenu").close();
     asteroids = [];
@@ -473,7 +492,7 @@ function setupVars() {
 
 function draw() {
   clampTime = Math.min(deltaTime, 100);
-  if(started) {
+  if (started) {
     tick++;
 
     if (tick < 15) asteroidSpawnTimer = 0;
@@ -528,7 +547,7 @@ function draw() {
 
         let joy = v(keyIsDown(68) - keyIsDown(65), keyIsDown(83) - keyIsDown(87)).normalize();
         if (prefers.controls == 0) {
-          let dst = v(joy.y, 0).rotate(player.dir).mult(-player.speed*clampTime*0.03);
+          let dst = v(joy.y, 0).rotate(player.dir).mult(-player.speed * clampTime * 0.03);
           player.vel.add(dst);
           player.dirVel += joy.x * 0.0009 * clampTime;
           player.dir += player.dirVel * clampTime * 0.03;
@@ -582,6 +601,7 @@ function draw() {
           let num = round(player.multishot);
           for (let i = 0; i < num; i++) {
             player.stats.bulletsFired++;
+            player.changedStats.bulletsFired++;
             bullets.push({
               pos: player.pos.copy(),
               vel: p5.Vector.add(player.vel, v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2)),
@@ -607,7 +627,30 @@ function draw() {
           //https://stackoverflow.com/questions/16449295/how-to-sum-the-values-of-a-javascript-object
           if (Object.values(player.score).reduce((a, b) => a + b, 0) >= Object.values(JSON.parse((localStorage.getItem("highscore")))).reduce((a, b) => a + b, 0)) localStorage.setItem("highscore", JSON.stringify(player.score));
         }
+        if (player.guardianLvl > 0) {
+          if (player.guardianCooldown <= 0) {
+            player.guardianCooldown = 15 - player.guardianLvl;
+            let n = 2 + player.guardianLvl;
+            for (let i = 0; i < 1; i += 1 / n) {
+              let r = i * 2 * PI;
+              guardians.push({ rot: r, dst: 150 + player.guardianLvl * 10, speed: 1 + player.guardianLvl * 0.3, life: 5 + player.guardianLvl, rad: 20, time: 0, dmg: 0.5 + player.guardianLvl * 0.1 });
+            }
+          } else {
+            player.guardianCooldown -= clampTime / 1000;
+          }
+        }
       }
+
+      guardians.forEach((e, i) => {
+        e.life -= clampTime / 1000;
+        e.time += clampTime / 1000;
+        e.rot += e.speed * clampTime / 1000;
+        e.dir = v(1, 0).rotate(e.rot + PI * 0.25);
+        if (e.life <= 0) {
+          guardians.splice(i, 1);
+          i--;
+        }
+      });
 
       asteroids.forEach((e, i) => {
         if (!Object.hasOwn(e, "boss")) e.boss = false;
@@ -621,7 +664,7 @@ function draw() {
           asteroids.splice(i, 1);
           i--;
         }
-        e.pos.add(p5.Vector.mult(e.vel,clampTime * 0.03));
+        e.pos.add(p5.Vector.mult(e.vel, clampTime * 0.03));
         if (e.pos.x > world.size.x / 2) {
           e.pos.x -= world.size.x;
         }
@@ -658,7 +701,20 @@ function draw() {
               asteroids.splice(i, 1);
               i--;
             }
-          } else if (e.followPlayer > 0) {
+          }
+          guardians.forEach((g) => {
+            let pos = v(g.dst, 0).rotate(g.rot).add(player.pos);
+            let dst = p5.Vector.sub(e.pos, pos);
+            if (dst.mag() <= g.rad + e.size / 2 + 5) {
+              e.hp -= g.dmg * player.dmg;
+              if (e.hp <= 0) {
+                astSplit(e, g.dir.heading());
+                asteroids.splice(i, 1);
+                i--;
+              }
+            }
+          });
+          if (e.followPlayer > 0) {
             dst.normalize();
             dst.mult(e.followPlayer * 0.03 * clampTime);
             e.vel.sub(dst);
@@ -735,6 +791,7 @@ function draw() {
             world.pickups.splice(i, 1);
             pickupData[pickup.type].collect(pickup);
             player.stats.pickups++;
+            player.changedStats.pickups++;
           }
           if (p5.Vector.sub(pos, player.pos).mag() < p5.Vector.sub(p5.Vector.add(pickup.pos, pickup.closest), player.pos).mag()) {
             pickup.closest = v(xOff, yOff);
@@ -798,6 +855,36 @@ function draw() {
         circle(0, 0, 65);
       }
       pop();
+      guardians.forEach((e) => {
+        let pos = v(e.dst, 0).rotate(e.rot);
+        stroke(255);
+        strokeWeight(5);
+        fill(0);
+        let s = e.rad * 2;
+        if (e.time < 1) {
+          s *= e.time;
+        }
+        if (e.life < 1) {
+          s *= e.life;
+        }
+        push();
+        translate(pos.x, pos.y);
+        rotate(e.rot * 2);
+        scale(s);
+        strokeWeight(0.7 / pow(s, 0.5));
+        fill(0);
+        ellipse(0, 0, 1, 1);
+        fill(255);
+        for (let r = 0; r < 1; r += 1 / 8) {
+          push();
+          rotate(r * 2 * PI);
+          triangle(0.5, 0.07, 0.5, -0.07, 0.6, 0);
+          pop();
+        }
+        line(0.1, 0, -0.1, 0);
+        line(0, 0.1, 0, -0.1);
+        pop();
+      });
     }
     if (player.alive) {
       drawPointerArrows();
@@ -847,13 +934,13 @@ function draw() {
 
     player.restart = keyIsDown(32);
 
-    if(typeof movementTouch != "undefined" && typeof dirTouch != "undefined") {
+    if (typeof movementTouch != "undefined" && typeof dirTouch != "undefined") {
       fill(0);
       stroke(255);
       strokeWeight(5);
-      rect(20,120,30,30,5);
-      line(30,130,30,140);
-      line(40,130,40,140);
+      rect(20, 120, 30, 30, 5);
+      line(30, 130, 30, 140);
+      line(40, 130, 40, 140);
     }
 
     if (prefers.showTouchControls && typeof movementTouch != "undefined" && typeof dirTouch != "undefined") {
@@ -891,18 +978,18 @@ function draw() {
   } else {
     background(0);
     push();
-    translate(innerWidth/2,innerHeight/2);
+    translate(innerWidth / 2, innerHeight / 2);
     fill(0);
     stroke(250);
     strokeWeight(5);
-    asteroids.sort((a,b) => a.size-b.size).forEach((e) => {
+    asteroids.sort((a, b) => a.size - b.size).forEach((e) => {
       fill("rgba(0,0,0,0.5)");
-      ellipse(e.pos.x,e.pos.y,e.size,e.size);
-      e.pos.add(p5.Vector.mult(e.vel,clampTime*0.03));
+      ellipse(e.pos.x, e.pos.y, e.size, e.size);
+      e.pos.add(p5.Vector.mult(e.vel, clampTime * 0.03));
     });
     background("rgba(0,0,0,0.5)");
     fill(0);
-    triangle(-15,-15,-15,15,20,0);
+    triangle(-15, -15, -15, 15, 20, 0);
     pop();
   }
 }
@@ -943,6 +1030,7 @@ function tickBullets() {
               if (lineCircleCollision(p5.Vector.add(bullet.pos, v(offX, offY)), p5.Vector.add(bullet.lastPos, v(offX, offY)), asteroid.pos, asteroid.size / 2 + 10 + player.projectileSize * 1.2)) {
                 bullets.splice(i, 1);
                 player.stats.bulletsHit++;
+                player.changedStats.bulletsHit++;
                 run = false;
                 i--;
                 asteroid.hp -= bullet.dmg;
@@ -987,8 +1075,8 @@ function pauseGame() {
     document.getElementById("quit").addEventListener("click", () => { player.hp = 0; pause = false; document.getElementById("pauseMenu").close() });
     document.getElementById("exit").addEventListener("click", () => noLoop());
     document.getElementById("control").addEventListener("click", () => { prefers.controls++; if (prefers.controls > 2) prefers.controls -= 3 });
-    if(!Object.hasOwn(window,"Touch")) {
-      document.getElementById("showTouchControls").parentElement.setAttribute("class","disabledText");
+    if (!Object.hasOwn(window, "Touch")) {
+      document.getElementById("showTouchControls").parentElement.setAttribute("class", "disabledText");
       document.getElementById("showTouchControls").parentElement.innerHTML = "Your browser does not<br>support touch controls";
     }
     [...document.getElementById("pauseMenu").querySelectorAll("label")].forEach(label => {
@@ -1006,6 +1094,8 @@ function pauseGame() {
 })
 
 function startLevelUp() {
+  player.stats.upgrades++;
+  player.changedStats.upgrades++;
   let choices = [];
   upgrades.forEach((e, i) => {
     if (e.times < e.max) {
@@ -1049,20 +1139,41 @@ async function showDeathScreen() {
     Your score: ${fullPlayerScore.toLocaleString()}<br>
     Your Highscore: ${fullHighscore.toLocaleString()}<br>
   `;
-  document.getElementById("leaderboard").innerHTML = "loading...";
+  document.getElementById("leaderboard").innerHTML = "loading leaderboard...";
 
-  await submitScore(username, timer, player.score, version);
+  submitScore(username, timer, player.score, version).then(async () => {
 
-  document.getElementById("leaderboard").innerHTML = "";
+    const globalHighscores = await getScores();
+    document.getElementById("leaderboard").innerHTML = "<h2>Leaderboard:</h2>";
+    renderHighscores(globalHighscores)
 
-  const globalHighscores = await getScores();
-  renderHighscores(globalHighscores)
+    if (fullPlayerScore >= fullHighscore) {
+      deathScreen.querySelector("span").innerHTML = `
+        New Highscore! ${fullPlayerScore.toLocaleString()}<br>
+      `;
+    }
+  });
 
-  if (fullPlayerScore >= fullHighscore) {
-    deathScreen.querySelector("span").innerHTML = `
-      New Highscore! ${fullPlayerScore.toLocaleString()}<br>
-    `;
-  }
+  document.getElementById("runStats").innerHTML = `
+  <h2>Run stats:</h2>
+  <span>Kills: ${player.stats.kills}</span><br>
+  <span>Shots fired: ${player.stats.bulletsFired}</span><br>
+  <span>Shots hit: ${player.stats.bulletsHit}</span><br>
+  <span>Hit accuracy: ${player.stats.bulletsFired > 0 ? round(player.stats.bulletsHit / player.stats.bulletsFired * 1000) / 10 : 0}%</span><br>
+  <span>Upgrades: ${player.stats.upgrades}</span><br>`;
+
+  document.getElementById("totalStats").innerHTML = "<span>loading stats...</span>";
+  setUser({ relative: true }, JSON.parse(JSON.stringify(player.changedStats))).then(async () => {
+    let user = await getUser();
+    document.getElementById("totalStats").innerHTML = `
+    <h2>Total stats:</h2>
+    <span>Runs: ${user.runs}</span><br>
+    <span>Kills: ${user.kills}</span><br>
+    <span>Shots fired: ${user.bulletsFired}</span><br>
+    <span>Shots hit: ${user.bulletsHit}</span><br>
+    <span>Hit accuracy: ${Math.round(user.bulletsHit / user.bulletsFired * 1000) / 10}%</span><br>
+    <span>Upgrades: ${user.upgrades}</span><br>`;
+  });
 }
 
 let loadMoreButton = document.getElementById("loadMoreButton");
@@ -1237,6 +1348,7 @@ function v(x, y) {
 }
 function astSplit(a, dir) {
   player.stats.kills++;
+  player.changedStats.kills++;
   explosions.push({ pos: a.pos.copy(), vel: a.vel.copy(), tick: 0, size: a.size });
   world.screenshake.set(a.size * screenshakeModifier, a.size * screenshakeModifier, 0.1)
   player.score.kills += a.size > 35 ? 150 : (a.size > 25 ? 100 : 75);

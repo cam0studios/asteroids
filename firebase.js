@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
-import { getFirestore, collection, addDoc, doc, getDocs, where, query, orderBy, limit, serverTimestamp, startAfter } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js"
+import { getFirestore, collection, addDoc, doc, getDocs, where, query, orderBy, limit, serverTimestamp, startAfter, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js"
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -36,13 +36,13 @@ if (!localStorage.getItem("userId")) {
 gtag("config", TAG_ID, { "user_id": localStorage.getItem("userId") });
 
 //firebase online leaderboards
-window.submitScore = async function(username, time, score, version) {
+window.submitScore = async function (username, time, score, version) {
   let fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
   if (fullPlayerScore > 10000 && fullPlayerScore < 100000000) {
     addDoc(collection(db, "highscores2"), {
       scoreData: score,
       time,
-      username:username.substring(0, 25),
+      username: username.substring(0, 25),
       total: Object.values(player.score).reduce((a, b) => a + b, 0),
       timestamp: serverTimestamp(),
       version: version,
@@ -51,9 +51,9 @@ window.submitScore = async function(username, time, score, version) {
     })
   }
 }
-window.getScores = async function(startAtObject) {
+window.getScores = async function (startAtObject) {
   const collectionName = "highscores2",
-        itemLimit = 10
+    itemLimit = 10
   let querySnapshot;
   if (typeof startAtObject !== "undefined") {
     querySnapshot = await getDocs(query(collection(db, collectionName), orderBy("total", "desc"), limit(itemLimit), startAfter(startAtObject)))
@@ -61,6 +61,45 @@ window.getScores = async function(startAtObject) {
     querySnapshot = await getDocs(query(collection(db, collectionName), orderBy("total", "desc"), limit(itemLimit)))
   }
   return querySnapshot
+}
+
+window.getUser = async function (id = localStorage.getItem("userId")) {
+  let docRef = doc(db, "users", id);
+  let snap = await getDoc(docRef);
+  if (snap.exists()) {
+    return snap.data();
+  } else {
+    setUser(id);
+  }
+}
+window.setUser = async function (props, data) {
+  let relative = Object.hasOwn(props,"relative") ? props.relative : true;
+  let id = Object.hasOwn(props,"id") ? props.id : localStorage.getItem("userId");
+  if (typeof data != "object") {
+    data = {
+      username: "",
+      bulletsHit: 0,
+      bulletsFired: 0,
+      chests: 0,
+      kills: 0,
+      pickups: 0,
+      runs: 0,
+      username: localStorage.getItem("username")
+    }
+  } else {
+    let oldData = await getUser(id);
+    if(relative) {
+      Object.keys(data).forEach((e) => {
+        if(parseFloat(oldData[e])) data[e] += oldData[e];
+      });
+    }
+    Object.keys(oldData).forEach((e) => {
+      if(!Object.hasOwn(data,e)) data[e] = oldData[e];
+    });
+  }
+  console.log(data);
+  let docRef = doc(db, "users", id);
+  setDoc(docRef,data);
 }
 
 //analytics
