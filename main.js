@@ -82,8 +82,9 @@ const upgrades = [
   { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "+1 Max Heath, Heal 2 Hearts", max: 5 },
   { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 },
   { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "+0.3 Bullet damage", max: 10 },
-  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.25, description: "Bullets automatically move toward targets", max: 5 },
+  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.25, description: "Bullets home toward targets", max: 5 },
   { name: "Guardian", f: () => { player.guardianLvl++ }, weight: 0.3, description: "Adds a spinning blade", max: 5 },
+  { name: "Shield Upgrade", f: () => player.shieldLvl++, weight: 0.2, description: "Allows you to carry more shields", max: 3 },
   // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 5}
 ];
 const pickupData = [
@@ -109,7 +110,13 @@ const pickupData = [
   {
     col: "rgb(50,150,250)",
     weight: 0.7,
-    collect: () => { player.shield = true; player.score.pickups += 350; },
+    collect: () => {
+      player.shield++;
+      if (player.shield > player.shieldLvl + 1) {
+        player.shield = player.shieldLvl + 1;
+      }
+      player.score.pickups += 350;
+    },
     draw: () => {
       fill("rgb(50, 150, 250)");
       stroke("rgb(50, 130, 220)");
@@ -461,7 +468,8 @@ function setupVars() {
     multishot: 1,
     reloadTime: 5,
     spread: 0.1,
-    shield: false,
+    shield: 0,
+    shieldLvl: 0,
     projectileSpeed: 15,
     projectileSize: 5,
     dmg: 1,
@@ -482,11 +490,11 @@ function setupVars() {
   });
 
   // testing, all pickups
-  // for (let j = 0; 10 > j++;) {
-  //   for (let i = 0; i < pickupData.length; i++) {
-  //     world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 50, -1000 + j * 50), type: i })
-  //   }
-  // }
+  for (let j = 0; 10 > j++;) {
+    for (let i = 0; i < pickupData.length; i++) {
+      world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 50, -1000 + j * 50), type: i, amount: 10 })
+    }
+  }
 }
 
 function draw() {
@@ -680,15 +688,18 @@ function draw() {
         if (player.alive) {
           let dst = p5.Vector.sub(e.pos, player.pos);
           dst.add(e.closest);
-          if (dst.mag() < e.size / 2 + 25 + player.shield * 10) {
+          if (dst.mag() < e.size / 2 + 25 + (player.shield ? 1 : 0) * 10) {
             if (player.iframe <= 0) {
-              if (player.shield) player.shield = false;
-              else player.hp--;
+              if (player.shield > 0) {
+                player.shield--;
+              } else {
+                player.hp--;
+              }
               e.hp--;
               player.iframe = 10;
             }
             dst = dst.normalize();
-            dst.mult(e.size / 2 + 25);
+            dst.mult(e.size / 2 + 25 + (player.shield ? 1 : 0) * 10);
             e.pos = player.pos.copy();
             e.pos.add(dst);
             e.vel.sub(player.vel);
@@ -853,9 +864,10 @@ function draw() {
       if (player.iframe > 0) fill(255);
       else fill(0);
       triangle(-15, -15, -15, 15, 20, 0);
-      if (player.shield) {
-        fill("rgba(50, 200, 250, 0.3)");
-        stroke("rgb(0, 150, 250)");
+      if (player.shield > 0) {
+        fill(`rgba(${50 + player.shield * 50}, ${200 - player.shield * 20}, 250, 0.3)`);
+        // stroke("rgb(0, 150, 250)");
+        stroke(`rgb(${50 + player.shield * 50}, ${200 - player.shield * 20}, 250)`)
         strokeWeight(5);
         circle(0, 0, 65);
       }
