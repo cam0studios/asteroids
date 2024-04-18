@@ -97,7 +97,6 @@ window.setUser = async function (props, data) {
       if(!Object.hasOwn(data,e)) data[e] = oldData[e];
     });
   }
-  console.log(data);
   let docRef = doc(db, "users", id);
   setDoc(docRef,data);
 }

@@ -1,4 +1,4 @@
-const version = "3.7.0";
+const version = "3.7.1";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -72,7 +72,7 @@ if (!localStorage.getItem("username")) {
 function changeUsername() {
   username = prompt("Change your username", username) || defaultUsername;
   localStorage.setItem("username", username);
-  setUser({},{username});
+  setUser({}, { username });
 }
 
 const upgrades = [
@@ -83,7 +83,7 @@ const upgrades = [
   { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 },
   { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "+0.3 Bullet damage", max: 10 },
   { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.25, description: "Bullets automatically move toward targets", max: 5 },
-  { name: "Guardian", f: () => { player.guardianLvl++ }, weight: 100.3, description: "Adds a spinning blade", max: 5 },
+  { name: "Guardian", f: () => { player.guardianLvl++ }, weight: 0.3, description: "Adds a spinning blade", max: 5 },
   // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 5}
 ];
 const pickupData = [
@@ -394,7 +394,6 @@ function setup() {
   }
   setupVars();
   setInterval(() => {
-    console.log("set");
     setUser({ relative: true }, JSON.parse(JSON.stringify(player.changedStats)));
     Object.keys(player.changedStats).forEach((k) => {
       player.changedStats[k] = 0;
@@ -711,6 +710,12 @@ function draw() {
                 astSplit(e, g.dir.heading());
                 asteroids.splice(i, 1);
                 i--;
+              } else {
+                let dir = g.dir.copy();
+                dir.setMag(5);
+                e.vel.add(dir);
+                dir.mult(2);
+                e.pos.add(dir);
               }
             }
           });
@@ -1073,7 +1078,7 @@ function pauseGame() {
     document.getElementById("pauseMenu").showModal();
     document.getElementById("resume").addEventListener("click", () => { pause = false; document.getElementById("pauseMenu").close() });
     document.getElementById("quit").addEventListener("click", () => { player.hp = 0; pause = false; document.getElementById("pauseMenu").close() });
-    document.getElementById("exit").addEventListener("click", () => noLoop());
+    //document.getElementById("exit").addEventListener("click", () => noLoop());
     document.getElementById("control").addEventListener("click", () => { prefers.controls++; if (prefers.controls > 2) prefers.controls -= 3 });
     if (!Object.hasOwn(window, "Touch")) {
       document.getElementById("showTouchControls").parentElement.setAttribute("class", "disabledText");
