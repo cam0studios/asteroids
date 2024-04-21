@@ -1,4 +1,4 @@
-const version = "3.7.1";
+const version = "3.8.0";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -47,7 +47,16 @@ var asteroids,
   movementTouch,
   dirTouch,
   mouseDown,
-  guardians = [];
+  projectiles = [],
+  rarityData = {
+    "-1": "rgb(70, 70, 70)",
+    0: "rgb(70, 70, 70)",
+    1: "rgb(71, 116, 65)",
+    2: "rgb(65, 78, 116)",
+    3: "rgb(95, 65, 116)",
+    4: "rgb(131, 104, 22)",
+    5: "rgb(150, 46, 46)"
+  }
 
 if (!localStorage.getItem("highscore")) {
   localStorage.setItem("highscore", 0);
@@ -76,17 +85,145 @@ function changeUsername() {
 }
 
 const upgrades = [
-  { name: "Speed", f: () => player.speed += 0.2, weight: 1, description: "Your ship moves faster", max: 5 },
-  { name: "Multishot", f: () => player.multishot += 1, weight: 0.2, description: "+1 Bullet per shot", max: 10 },
-  { name: "Fire rate", f: () => player.reloadTime *= 0.85, weight: 0.8, description: "Shoot faster", max: 10 },
-  { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "+1 Max Heath, Heal 2 Hearts", max: 5 },
-  { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10 },
-  { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "+0.3 Bullet damage", max: 10 },
-  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.25, description: "Bullets home toward targets", max: 5 },
-  { name: "Guardian", f: () => { player.guardianLvl++ }, weight: 0.3, description: "Adds a spinning blade", max: 5 },
-  { name: "Shield Upgrade", f: () => player.shieldLvl++, weight: 0.2, description: "Allows you to carry more shields", max: 3 },
+  { name: "Speed", f: () => player.speed += 0.2, weight: 1, description: "Your ship moves faster", max: 5, rarity: 0 },
+  { name: "Multishot", f: () => player.multishot += 1, weight: 0.2, description: "+1 Bullet per shot", max: 10, rarity: 3 },
+  { name: "Fire rate", f: () => player.reloadTime *= 0.85, weight: 0.8, description: "Shoot faster", max: 10, rarity: 1 },
+  { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "+1 Max Heath, Heal 2 Hearts", max: 5, rarity: 0 },
+  { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10, rarity: 0 },
+  { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "+0.3 Bullet damage", max: 10, rarity: 2 },
+  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.25, description: "Bullets home toward targets", max: 5, rarity: 3 },
+  { name: "Shield Upgrade", f: () => { player.shieldLvl++; player.shield++ }, weight: 0.2, description: "+1 Shield Limit", max: 3, rarity: 3 },
+  // { name: "Guardian", f: () => { player.weapons.guardianLvl++ }, weight: 0.3, description: "Adds a spinning blade", max: 5 },
   // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 5}
 ];
+const weapons = [
+  {
+    name: "Guardian",
+    id: "guardian",
+    description: "Spawns a spinning blade",
+    weight: 0.1,
+    rarity: 3,
+    onGet: () => {
+      let weaponObject = {}
+      weaponObject = Object.assign(weapons.find(x => x.id == "guardian"), weaponObject);
+
+      weaponObject.upgrades.forEach(upgrade => upgrade.times = 0)
+      weaponObject.power = 0.5;
+      weaponObject.duration = 5;
+      weaponObject.projectileSpeed = 1;
+      weaponObject.cooldown = 0;
+      weaponObject.lvl = 0;
+      weaponObject.amount = 3;
+      weaponObject.fireRate = 15;
+      weaponObject.area = 1;
+      player.weapons.push(weaponObject)
+    },
+    upgrades: [
+      {
+        name: "1 Extra Guardian",
+        desc: "Adds an extra guardian",
+        onGet: (weapon) => {
+          weapon.amount++;
+        },
+        max: 2
+      },
+      {
+        name: "Damage Up",
+        desc: "Increases damage dealt on contact",
+        onGet: (weapon) => {
+          weapon.power += 0.5;
+        },
+        max: 3
+      },
+      {
+        name: "Speed Up",
+        desc: "Increases the speed guardians spin",
+        onGet: (weapon) => {
+          weapon.projectileSpeed += 3;
+          weapon.duration += 2
+        },
+        max: 3
+      },
+      {
+        name: "Area up",
+        desc: "Increases how big guardians are",
+        onGet: (weapon) => {
+          weapon.area += 0.25;
+        },
+        max: 2
+      }
+    ],
+    tick: (weapon) => {
+      if (weapon.cooldown <= 0) {
+        weapon.cooldown = weapon.fireRate;
+        for (let i = 0; i < 1; i += 1 / weapon.amount) {
+          let r = i * 2 * PI;
+          projectiles.push({ type: "guardian", rot: r, dst: 150 + weapon.lvl, speed: weapon.projectileSpeed, life: weapon.duration, rad: weapon.area * 20, time: 0, dmg: weapon.power })
+        }
+      } else {
+        weapon.cooldown -= clampTime / 1000
+      }
+    },
+    projectileTick: (projectile, i) => {
+      projectile.life -= clampTime / 1000;
+      projectile.time += clampTime / 1000;
+      projectile.rot += projectile.speed * clampTime / 1000
+      projectile.dir = v(1, 0).rotate(projectile.rot + PI * 9990.25);
+      if (projectile.life <= 0) {
+        projectiles.splice(i, 1)
+      }
+    },
+    drawTick: (projectile) => {
+      let pos = v(projectile.dst, 0).rotate(projectile.rot);
+      stroke(255);
+      strokeWeight(5);
+      fill(0);
+      let s = projectile.rad * 2;
+      if (projectile.time < 1) {
+        s *= projectile.time;
+      }
+      if (projectile.life < 1) {
+        s *= projectile.life;
+      }
+      push();
+      translate(pos.x, pos.y);
+      rotate(projectile.rot * -3);
+      scale(s);
+      strokeWeight(0.7 / pow(s, 0.5));
+      fill(0);
+      ellipse(0, 0, 1, 1);
+      fill(255);
+      for (let r = 0; r < 1; r += 1 / 8) {
+        push();
+        rotate(r * 2 * PI);
+        triangle(0.5, 0.07, 0.5, -0.07, 0.6, 0);
+        pop();
+      }
+      line(0.1, 0, -0.1, 0);
+      line(0, 0.1, 0, -0.1);
+      pop();
+    },
+    asteroidTick: (projectile, projectileIndex, asteroid, asteroidIndex) => {
+      let pos = v(projectile.dst, 0).rotate(projectile.rot).add(player.pos);
+      let dst = p5.Vector.sub(asteroid.pos, pos);
+      if (dst.mag() <= projectile.rad + asteroid.size / 2 + 5) {
+        asteroid.hp -= projectile.dmg * player.dmg;
+        if (asteroid.hp <= 0) {
+          astSplit(asteroid, projectile.dir.heading());
+          asteroids.splice(asteroidIndex, 1);
+          asteroidIndex--;
+        } else {
+          let dir = projectile.dir.copy();
+          dir.setMag(5);
+          asteroid.vel.add(dir);
+          dir.mult(2);
+          asteroid.pos.add(dir);
+        }
+      }
+    }
+  }
+]
+
 const pickupData = [
   {
     col: "rgb(220, 50, 0)",
@@ -152,12 +289,24 @@ const pickupData = [
       player.changedStats.chests++;
       let gotten = [];
       for (let i = 0; i < e.amount; i++) {
-        let choices = upgrades.map((u, i) => { return { e: u, i: i } }).filter(u => u.e.times < u.e.max).map(u => u.i);
+        let choices = upgrades.map((u, i) => { return { e: u, i: i } }).filter(u => u.e.times < u.e.max).map(u => {return {i: u.i, type: "upgrade"}})
+//        .concat(player.weapons.map(weapon => weapon.upgrades.map(upgrade => { return {} }).filter(u => u.times < u.max)))
+        player.weapons.forEach(weapon => {
+          weapon.upgrades.forEach(upgrade => {
+            if (upgrade.times < upgrade.max) choices.push({ type: "weapon", w: weapon, u: upgrade })
+          })
+        })
         if (choices.length > 0) {
           let choice = choices[floor(random() * choices.length)];
-          upgrades[choice].f();
-          upgrades[choice].times++;
-          gotten.push({ name: upgrades[choice].name, times: upgrades[choice].times });
+          if (choice.type == "upgrade") {
+            upgrades[choice.i].f();
+            upgrades[choice.i].times++;
+            gotten.push({ name: upgrades[choice.i].name, times: upgrades[choice.i].times });
+          } else {
+            choice.u.onGet(choice.w);
+            choice.u.times++;
+            gotten.push({ name: `${choice.w.name} - ${choice.u.name}`, times: choice.u.times });
+          }
         } else {
           gotten.push({ name: "XP", times: 2000 });
           player.score.other += 2000;
@@ -476,8 +625,9 @@ function setupVars() {
     homing: 0,
     homingRange: 80,
     toggleFire: false,
-    guardianLvl: 0,
-    guardianCooldown: 0
+    weapons: [
+
+    ]
   };
   for (let i = 0; i < 10; i += 0.3 / (i + 2)) {
     asteroids.push({ pos: v(i * world.size.mag() / 10 + 100, 0).rotate(random() * 2 * PI), vel: v(random() * 3, 0).rotate(random() * 2 * PI), size: random() * 20 + 20 });
@@ -490,9 +640,9 @@ function setupVars() {
   });
 
   // testing, all pickups
-  // for (let j = 0; 10 > j++;) {
+  // for (let j = 0; 5 > j++;) {
   //   for (let i = 0; i < pickupData.length; i++) {
-  //     world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 50, -1000 + j * 50), type: i, amount: 10 })
+  //     world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 530, -1000 + j * 50), type: 3, amount: 10 })
   //   }
   // }
 }
@@ -634,30 +784,15 @@ function draw() {
           //https://stackoverflow.com/questions/16449295/how-to-sum-the-values-of-a-javascript-object
           if (Object.values(player.score).reduce((a, b) => a + b, 0) >= Object.values(JSON.parse((localStorage.getItem("highscore")))).reduce((a, b) => a + b, 0)) localStorage.setItem("highscore", JSON.stringify(player.score));
         }
-        if (player.guardianLvl > 0) {
-          if (player.guardianCooldown <= 0) {
-            player.guardianCooldown = 15 - player.guardianLvl;
-            let n = 2 + player.guardianLvl;
-            for (let i = 0; i < 1; i += 1 / n) {
-              let r = i * 2 * PI;
-              guardians.push({ rot: r, dst: 150 + player.guardianLvl * 10, speed: 1 + player.guardianLvl * 0.3, life: 5 + player.guardianLvl, rad: 20, time: 0, dmg: 0.5 + player.guardianLvl * 0.1 });
-            }
-          } else {
-            player.guardianCooldown -= clampTime / 1000;
-          }
-        }
+        player.weapons.forEach(weapon => {
+          weapon.tick(weapon);
+        })
+        projectiles.forEach((projectile, i) => {
+          weapons.find(x => x.id == projectile.type).projectileTick(projectile, i)
+        })
+
       }
 
-      guardians.forEach((e, i) => {
-        e.life -= clampTime / 1000;
-        e.time += clampTime / 1000;
-        e.rot += e.speed * clampTime / 1000;
-        e.dir = v(1, 0).rotate(e.rot + PI * 0.25);
-        if (e.life <= 0) {
-          guardians.splice(i, 1);
-          i--;
-        }
-      });
 
       asteroids.forEach((e, i) => {
         if (!Object.hasOwn(e, "boss")) e.boss = false;
@@ -712,24 +847,9 @@ function draw() {
               i--;
             }
           }
-          guardians.forEach((g) => {
-            let pos = v(g.dst, 0).rotate(g.rot).add(player.pos);
-            let dst = p5.Vector.sub(e.pos, pos);
-            if (dst.mag() <= g.rad + e.size / 2 + 5) {
-              e.hp -= g.dmg * player.dmg;
-              if (e.hp <= 0) {
-                astSplit(e, g.dir.heading());
-                asteroids.splice(i, 1);
-                i--;
-              } else {
-                let dir = g.dir.copy();
-                dir.setMag(5);
-                e.vel.add(dir);
-                dir.mult(2);
-                e.pos.add(dir);
-              }
-            }
-          });
+          projectiles.forEach((projectile, projectileIndex) => {
+            weapons.find(x => x.id == projectile.type).asteroidTick(projectile, projectileIndex, e, i)
+          })
           if (e.followPlayer > 0) {
             dst.normalize();
             dst.mult(e.followPlayer * 0.03 * clampTime);
@@ -872,35 +992,8 @@ function draw() {
         circle(0, 0, 65);
       }
       pop();
-      guardians.forEach((e) => {
-        let pos = v(e.dst, 0).rotate(e.rot);
-        stroke(255);
-        strokeWeight(5);
-        fill(0);
-        let s = e.rad * 2;
-        if (e.time < 1) {
-          s *= e.time;
-        }
-        if (e.life < 1) {
-          s *= e.life;
-        }
-        push();
-        translate(pos.x, pos.y);
-        rotate(e.rot * 2);
-        scale(s);
-        strokeWeight(0.7 / pow(s, 0.5));
-        fill(0);
-        ellipse(0, 0, 1, 1);
-        fill(255);
-        for (let r = 0; r < 1; r += 1 / 8) {
-          push();
-          rotate(r * 2 * PI);
-          triangle(0.5, 0.07, 0.5, -0.07, 0.6, 0);
-          pop();
-        }
-        line(0.1, 0, -0.1, 0);
-        line(0, 0.1, 0, -0.1);
-        pop();
+      projectiles.forEach((projectile) => {
+        weapons.find(x => x.id == projectile.type).drawTick(projectile)
       });
     }
     if (player.alive) {
@@ -1076,7 +1169,7 @@ function tickBullets() {
 }
 
 function drawPauseMenu() {
-  document.getElementById("control").innerHTML = ["AD Turning", "Mouse + WASD", "Mouse + Arrow Turning"][prefers.controls];
+  document.getElementById("control").innerHTML = ["AD Turning", "Mouse + WASD", "WASD + Arrow Turning"][prefers.controls];
 }
 function pauseGame() {
   setTimeout(() => {
@@ -1085,7 +1178,12 @@ function pauseGame() {
     //drawing upgrades
     const upgradeElement = document.querySelector("#upgrades");
 
-    upgradeElement.innerHTML = upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>` : "").join("") + `${version} (${pageTime.toLocaleDateString().replaceAll("/", ".")}.${pageTime.getHours()})`
+    upgradeElement.innerHTML = "<b>Player:</b><br>" + upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>` : "").join("")
+
+    player.weapons.forEach(weapon => {
+      upgradeElement.innerHTML += `<b>${weapon.name}</b><br> + ${weapon.upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>`: "").join("")}`
+    })
+    upgradeElement.innerHTML += `${version} (${pageTime.toLocaleDateString().replaceAll("/", ".")}.${pageTime.getHours()})`
 
     document.getElementById("pauseMenu").showModal();
     document.getElementById("resume").addEventListener("click", () => { pause = false; document.getElementById("pauseMenu").close() });
@@ -1117,10 +1215,26 @@ function startLevelUp() {
   upgrades.forEach((e, i) => {
     if (e.times < e.max) {
       for (let n = 0; n < e.weight; n += 0.05) {
-        choices.push({ name: e.name, f: e.f, description: e.description, i: i });
+        choices.push({ name: e.name, f: e.f, description: e.description, i: i, type: "normal" });
       }
     }
   });
+  weapons.forEach((weapon, i) => {
+    if (!player.weapons.find(x => x.id == weapon.id)) {
+      for (let n = 0; n < weapon.weight; n += 0.05) {
+        choices.push({ name: weapon.name, f: weapon.onGet, description: weapon.description, i: -1, type: "weapon" })
+      }
+    } else {
+      const playerWeapons = player.weapons.filter(x => x.id == weapon.id);
+      playerWeapons.forEach(playerWeapon => {
+        playerWeapon.upgrades.forEach((upgrade, i) => {
+          if (upgrade.times < upgrade.max) {
+            choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade })
+          }
+        })
+      })
+    }
+  })
   levelUpgrades = [];
   if (choices.length > 0) {
     for (let n = 0; n < 3; n++) {
@@ -1131,14 +1245,23 @@ function startLevelUp() {
       }
     }
   } else {
-    levelUpgrades.push({ name: "XP", f: () => { player.score.other += 2000 }, description: "Adds 2000 xp", i: -1 });
-    levelUpgrades.push({ name: "Health", f: () => { player.hp += 1 }, description: "Restores 1 additional health", i: -1 });
+    levelUpgrades.push({ name: "XP", f: () => { player.score.other += 2000 }, description: "Adds 2000 xp", i: -1, type: "normal" });
+    levelUpgrades.push({ name: "Health", f: () => { player.hp += 1 }, description: "Restores 1 additional health", i: -1 , type: "normal"});
   }
   document.getElementById("levelUpDialog").showModal();
-  document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => `<button id="levelUp${i}"><h2>${upgrade.name}</h2><p>${upgrade.description}</p>${upgrade.i > -1 ? `<p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p>` : ""}</button>`).join("<br/>");
+
+  document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => {
+    if (upgrade.type == "normal") {
+      return `<button id="levelUp${i}" style="background-color:${upgrade.i==-1? rarityData["-1"]:rarityData[upgrades[upgrade.i].rarity]};"><h2>${upgrade.name}</h2><p>${upgrade.description}</p>${upgrade.i > -1 ? `<p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p>` : ""}</button>`
+    } else if (upgrade.type == "weapon") {
+      return `<button id="levelUp${i}" style="background-color:${rarityData[3]};"><h2>${upgrade.name}</h2><p>${upgrade.description}</p></button>`
+    } else if (upgrade.type == "weaponUpgrade") {
+      return `<button id="levelUp${i}" style="background-color:${rarityData[upgrade.rarity]};"><h2>${upgrade.name}</h2><p>${upgrade.description}</p><p>${upgrade.self.times}/${upgrade.self.max}</p></button>`
+    }
+  }).join("<br/>");
   levelUpgrades.forEach((e, i) => {
     document.getElementById("levelUp" + i).addEventListener("click", () => {
-      if (e.i > -1) upgrades[e.i].times++;
+      if (e.i > -1 && e.type == "normal") upgrades[e.i].times++;
       e.f();
       levelUp = false;
       document.getElementById("levelUpDialog").close();
