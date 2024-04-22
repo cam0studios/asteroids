@@ -698,11 +698,11 @@ function setupVars() {
   });
 
   // testing, all pickups
-  for (let j = 0; 5 > j++;) {
-    for (let i = 0; i < pickupData.length; i++) {
-      world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 530, -1000 + j * 50), type: 3, amount: 10 })
-    }
-  }
+  // for (let j = 0; 5 > j++;) {
+  //   for (let i = 0; i < pickupData.length; i++) {
+  //     world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 530, -1000 + j * 50), type: 3, amount: 10 })
+  //   }
+  // }
 }
 
 function draw() {
