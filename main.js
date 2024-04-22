@@ -1,4 +1,4 @@
-const version = "3.8.0";
+const version = "3.8.1";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -86,7 +86,7 @@ function changeUsername() {
 
 const upgrades = [
   { name: "Speed", f: () => player.speed += 0.2, weight: 1, description: "Your ship moves faster", max: 5, rarity: 0 },
-  { name: "Multishot", f: () => player.multishot += 1, weight: 0.2, description: "+1 Bullet per shot", max: 10, rarity: 3 },
+  { name: "Multishot", f: () => player.multishot += 1, weight: 0.1, description: "+1 Bullet per shot", max: 10, rarity: 4 },
   { name: "Fire rate", f: () => player.reloadTime *= 0.85, weight: 0.8, description: "Shoot faster", max: 10, rarity: 1 },
   { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "+1 Max Heath, Heal 2 Hearts", max: 5, rarity: 0 },
   { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10, rarity: 0 },
@@ -120,37 +120,37 @@ const weapons = [
     },
     upgrades: [
       {
-        name: "1 Extra Guardian",
+        name: "Extra Guardian",
         desc: "Adds an extra guardian",
-        onGet: (weapon) => {
-          weapon.amount++;
-        },
+        onGet: (weapon) => weapon.amount++,
         max: 2
       },
       {
         name: "Damage Up",
         desc: "Increases damage dealt on contact",
-        onGet: (weapon) => {
-          weapon.power += 0.5;
-        },
+        onGet: (weapon) => weapon.power += 0.75,
         max: 3
       },
       {
         name: "Speed Up",
-        desc: "Increases the speed guardians spin",
-        onGet: (weapon) => {
-          weapon.projectileSpeed += 3;
-          weapon.duration += 2
-        },
+        desc: "Increases speed guardians spin",
+        onGet: (weapon) => weapon.projectileSpeed += 3,
         max: 3
       },
       {
-        name: "Area up",
-        desc: "Increases how big guardians are",
+        name: "Area Up",
+        desc: "Increases guardian size",
+        onGet: (weapon) => weapon.area += 0.25,
+        max: 4
+      },
+      {
+        name: "Duration Up",
+        desc: "Increases time guardians last",
         onGet: (weapon) => {
-          weapon.area += 0.25;
+          weapon.duration += 1.25
+          weapon.fireRate -= 1.25
         },
-        max: 2
+        max: 4
       }
     ],
     tick: (weapon) => {
@@ -168,7 +168,7 @@ const weapons = [
       projectile.life -= clampTime / 1000;
       projectile.time += clampTime / 1000;
       projectile.rot += projectile.speed * clampTime / 1000
-      projectile.dir = v(1, 0).rotate(projectile.rot + PI * 9990.25);
+      projectile.dir = v(1, 0).rotate(projectile.rot + PI * 0.25);
       if (projectile.life <= 0) {
         projectiles.splice(i, 1)
       }
@@ -209,7 +209,7 @@ const weapons = [
       if (dst.mag() <= projectile.rad + asteroid.size / 2 + 5) {
         asteroid.hp -= projectile.dmg * player.dmg;
         if (asteroid.hp <= 0) {
-          astSplit(asteroid, projectile.dir.heading());
+          astSplit(asteroid, projectile.dir?.heading() || 0);
           asteroids.splice(asteroidIndex, 1);
           asteroidIndex--;
         } else {
@@ -221,7 +221,66 @@ const weapons = [
         }
       }
     }
-  }
+  },
+  // {
+  //   name: "Laser",
+  //   id: "laser",
+  //   description: "Creates a laser that can pierce asteroids",
+  //   weight: 0.1,
+  //   onGet: () => {
+  //     let weaponObject = {}
+  //     weaponObject = Object.assign(weapons.find(x => x.id == "laser"), weaponObject);
+
+  //     weaponObject.upgrades.forEach(upgrade => upgrade.times = 0)
+  //     weaponObject.power = 0.5;
+  //     weaponObject.duration = 5;
+  //     weaponObject.projectileSpeed = 0;
+  //     weaponObject.cooldown = 0;
+  //     weaponObject.lvl = 0;
+  //     weaponObject.amount = 1;
+  //     weaponObject.fireRate = 20;
+  //     weaponObject.area = 1;
+  //     player.weapons.push(weaponObject)
+  //   },
+  //   upgrades: [
+  //     {
+  //       name: "Damage Up",
+  //       desc: "Increases damage per second",
+  //       onGet: (weapon) => weapon.power += 0.5,
+  //       max: 4
+  //     },
+  //     {
+  //       name: "Size Up",
+  //       desc: "Increases beam size",
+  //       onGet: (weapon) => weapon.area += 1,
+  //       max: 2
+  //     },
+  //     {
+  //       name: "Duration up",
+  //       desc: "Increases time beam lasts",
+  //       onGet: (weapon) => weapon.duration += 2.5,
+  //       max: 4
+  //     }
+  //   ],
+  //   tick: (weapon) => {
+  //     if (weapon.cooldown <= 0) {
+  //       weapon.cooldown = weapon.fireRate;
+  //       projectiles.push({ type: "laser", size: weapon.area, life: weapon.duration })
+  //     } else {
+  //       weapon.cooldown -= clampTime / 1000
+  //     }
+  //   },
+  //   projectileTick: (projectile, i) => {
+  //     projectile.life -= clampTime / 1000;
+  //     if (projectile.life <= 0) {
+  //       projectiles.splice(i, 1)
+  //     }
+  //   },
+  //   drawTick: (projectile) => {
+  //     console.log(player.rot * 180 / Math.PI)
+  //   },
+  //   asteroidTick: () => { }
+  // }
 ]
 
 const pickupData = [
@@ -289,8 +348,7 @@ const pickupData = [
       player.changedStats.chests++;
       let gotten = [];
       for (let i = 0; i < e.amount; i++) {
-        let choices = upgrades.map((u, i) => { return { e: u, i: i } }).filter(u => u.e.times < u.e.max).map(u => {return {i: u.i, type: "upgrade"}})
-//        .concat(player.weapons.map(weapon => weapon.upgrades.map(upgrade => { return {} }).filter(u => u.times < u.max)))
+        let choices = upgrades.map((u, i) => { return { e: u, i: i } }).filter(u => u.e.times < u.e.max).map(u => { return { i: u.i, type: "upgrade" } })
         player.weapons.forEach(weapon => {
           weapon.upgrades.forEach(upgrade => {
             if (upgrade.times < upgrade.max) choices.push({ type: "weapon", w: weapon, u: upgrade })
@@ -640,11 +698,11 @@ function setupVars() {
   });
 
   // testing, all pickups
-  // for (let j = 0; 5 > j++;) {
-  //   for (let i = 0; i < pickupData.length; i++) {
-  //     world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 530, -1000 + j * 50), type: 3, amount: 10 })
-  //   }
-  // }
+  for (let j = 0; 5 > j++;) {
+    for (let i = 0; i < pickupData.length; i++) {
+      world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 530, -1000 + j * 50), type: 3, amount: 10 })
+    }
+  }
 }
 
 function draw() {
@@ -1181,7 +1239,7 @@ function pauseGame() {
     upgradeElement.innerHTML = "<b>Player:</b><br>" + upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>` : "").join("")
 
     player.weapons.forEach(weapon => {
-      upgradeElement.innerHTML += `<b>${weapon.name}</b><br> + ${weapon.upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>`: "").join("")}`
+      upgradeElement.innerHTML += `<b>${weapon.name}</b><br> + ${weapon.upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>` : "").join("")}`
     })
     upgradeElement.innerHTML += `${version} (${pageTime.toLocaleDateString().replaceAll("/", ".")}.${pageTime.getHours()})`
 
@@ -1229,7 +1287,9 @@ function startLevelUp() {
       playerWeapons.forEach(playerWeapon => {
         playerWeapon.upgrades.forEach((upgrade, i) => {
           if (upgrade.times < upgrade.max) {
-            choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade })
+            for (let n = 0; n < 0.5; n += 0.05) {
+              choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade })
+            }
           }
         })
       })
@@ -1246,13 +1306,13 @@ function startLevelUp() {
     }
   } else {
     levelUpgrades.push({ name: "XP", f: () => { player.score.other += 2000 }, description: "Adds 2000 xp", i: -1, type: "normal" });
-    levelUpgrades.push({ name: "Health", f: () => { player.hp += 1 }, description: "Restores 1 additional health", i: -1 , type: "normal"});
+    levelUpgrades.push({ name: "Health", f: () => { player.hp += 1 }, description: "Restores 1 additional health", i: -1, type: "normal" });
   }
   document.getElementById("levelUpDialog").showModal();
 
   document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => {
     if (upgrade.type == "normal") {
-      return `<button id="levelUp${i}" style="background-color:${upgrade.i==-1? rarityData["-1"]:rarityData[upgrades[upgrade.i].rarity]};"><h2>${upgrade.name}</h2><p>${upgrade.description}</p>${upgrade.i > -1 ? `<p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p>` : ""}</button>`
+      return `<button id="levelUp${i}" style="background-color:${upgrade.i == -1 ? rarityData["-1"] : rarityData[upgrades[upgrade.i].rarity]};"><h2>${upgrade.name}</h2><p>${upgrade.description}</p>${upgrade.i > -1 ? `<p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p>` : ""}</button>`
     } else if (upgrade.type == "weapon") {
       return `<button id="levelUp${i}" style="background-color:${rarityData[3]};"><h2>${upgrade.name}</h2><p>${upgrade.description}</p></button>`
     } else if (upgrade.type == "weaponUpgrade") {
