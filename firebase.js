@@ -37,19 +37,21 @@ gtag("config", TAG_ID, { "user_id": localStorage.getItem("userId") });
 
 //firebase online leaderboards
 window.submitScore = async function (username, time, score, version) {
-  let fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
-  if (fullPlayerScore > 10000 && fullPlayerScore < 100000000) {
-    addDoc(collection(db, "highscores2"), {
-      scoreData: score,
-      time,
-      username: username.substring(0, 25),
-      total: Object.values(player.score).reduce((a, b) => a + b, 0),
-      timestamp: serverTimestamp(),
-      version: version,
-      stats: player.stats,
-      userId: localStorage.getItem("userId")
-    })
-  }
+  if (location.href.includes('cam0studios')) {
+    let fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
+    if (fullPlayerScore > 10000 && fullPlayerScore < 100000000) {
+      addDoc(collection(db, "highscores2"), {
+        scoreData: score,
+        time,
+        username: username.substring(0, 25),
+        total: Object.values(player.score).reduce((a, b) => a + b, 0),
+        timestamp: serverTimestamp(),
+        version: version,
+        stats: player.stats,
+        userId: localStorage.getItem("userId")
+      })
+    }
+}
 }
 window.getScores = async function (startAtObject) {
   const collectionName = "highscores2",

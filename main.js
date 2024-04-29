@@ -101,7 +101,7 @@ const weapons = [
     name: "Guardian",
     id: "guardian",
     description: "Spawns a spinning blade",
-    weight: 0.1,
+    weight: 100.1,
     rarity: 3,
     onGet: () => {
       let weaponObject = {}
@@ -153,12 +153,15 @@ const weapons = [
         max: 4
       }
     ],
+    onUpgrade: (weapon) => {
+      weapon.cooldown = 0;
+    },
     tick: (weapon) => {
       if (weapon.cooldown <= 0) {
         weapon.cooldown = weapon.fireRate;
         for (let i = 0; i < 1; i += 1 / weapon.amount) {
           let r = i * 2 * PI;
-          projectiles.push({ type: "guardian", rot: r, dst: 150 + weapon.lvl, speed: weapon.projectileSpeed, life: weapon.duration, rad: weapon.area * 20, time: 0, dmg: weapon.power })
+          projectiles.push({ type: "guardian", rot: r, dst: 150 + weapon.lvl, speed: weapon.projectileSpeed, life: weapon.duration, rad: weapon.area * 20, time: 0, dmg: weapon.power, dir: v(1, 0) })
         }
       } else {
         weapon.cooldown -= clampTime / 1000
@@ -205,15 +208,16 @@ const weapons = [
     },
     asteroidTick: (projectile, projectileIndex, asteroid, asteroidIndex) => {
       let pos = v(projectile.dst, 0).rotate(projectile.rot).add(player.pos);
-      let dst = p5.Vector.sub(asteroid.pos, pos);
-      if (dst.mag() <= projectile.rad + asteroid.size / 2 + 5) {
+      let lastPos = v(projectile.dst, 0).rotate(projectile.rot - projectile.speed * clampTime / 1000).add(player.pos);
+      if (lineCircleCollision(pos, lastPos, p5.Vector.add(asteroid.pos, asteroid.closest), asteroid.size / 2 + projectile.rad + 5)) {
         asteroid.hp -= projectile.dmg * player.dmg;
         if (asteroid.hp <= 0) {
           astSplit(asteroid, projectile.dir?.heading() || 0);
           asteroids.splice(asteroidIndex, 1);
           asteroidIndex--;
         } else {
-          let dir = projectile.dir.copy();
+          let dir;
+          dir = projectile.dir?.copy();
           dir.setMag(5);
           asteroid.vel.add(dir);
           dir.mult(2);
@@ -277,7 +281,7 @@ const weapons = [
   //     }
   //   },
   //   drawTick: (projectile) => {
-  //     console.log(player.rot * 180 / Math.PI)
+
   //   },
   //   asteroidTick: () => { }
   // }
@@ -488,6 +492,16 @@ const bosses = [
       chestItems: 5
     }
   }, {
+    time: 660,
+    data: {
+      pos: 1000,
+      vel: 0,
+      size: 50,
+      hp: 300,
+      followPlayer: 2,
+      chestItems: 4
+    }
+  }, {
     time: 720,
     data: {
       pos: 1000,
@@ -668,7 +682,7 @@ function setupVars() {
       upgrades: 0
     },
     iframe: 0,
-    xp: 100,
+    xp: 0,
     lvlUp: 50,
     lvl: 0,
     speed: 0.4,
@@ -695,6 +709,8 @@ function setupVars() {
     started = true;
     document.getElementById("startMenu").close();
     asteroids = [];
+    levelUp = true;
+    startLevelUp();
   });
 
   // testing, all pickups
@@ -1288,7 +1304,7 @@ function startLevelUp() {
         playerWeapon.upgrades.forEach((upgrade, i) => {
           if (upgrade.times < upgrade.max) {
             for (let n = 0; n < 0.5; n += 0.05) {
-              choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade })
+              choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon.onUpgrade(weapon) }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade })
             }
           }
         })
@@ -1596,16 +1612,3 @@ document.addEventListener("keydown", (e) => {
     player.toggleFire = !player.toggleFire;
   }
 });
-
-function lineCircleCollision(l1, l2, c, rad) {
-  if (p5.Vector.sub(l1, c).mag() <= rad) return true;
-  if (p5.Vector.sub(l2, c).mag() <= rad) return true;
-  let len = p5.Vector.sub(l2, l1).mag();
-  let dot = p5.Vector.sub(c, l1).dot(p5.Vector.sub(l2, l1));
-  let close = p5.Vector.add(l1, p5.Vector.mult(p5.Vector.sub(l2, l1), dot));
-  let d1 = p5.Vector.sub(c, l1).mag();
-  let d2 = p5.Vector.sub(c, l2).mag();
-  let b = 0.1;
-  if ((d1 + d2 >= len - b && d1 + d2 <= len + b) && (p5.Vector.sub(close, c).mag() <= rad)) return true;
-  return false;
-}
