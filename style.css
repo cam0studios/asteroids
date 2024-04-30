@@ -160,3 +160,7 @@ dialog::backdrop {
 #pauseMenu {
   width: 30%;
 }
+
+body > div.vex.vex-theme-wireframe > div > form > div.vex-dialog-buttons > button.vex-dialog-button-secondary.vex-dialog-button.vex-last {
+  display: none;
+}
