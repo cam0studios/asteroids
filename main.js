@@ -11,7 +11,6 @@ const screenshakeModifier = 0.225,
   worldSize = 3000
 
 var asteroids,
-  bullets,
   explosions,
   asteroidSpawnTimer,
   asteroidSpawnRate,
@@ -120,23 +119,153 @@ function changeUsername() {
 
 const upgrades = [
   { name: "Speed", f: () => player.speed += 0.2, weight: 1, description: "Your ship moves faster", max: 5, rarity: 0 },
-  { name: "Multishot", f: () => player.multishot += 1, weight: 0.1, description: "+1 Bullet per shot", max: 10, rarity: 4 },
-  { name: "Fire rate", f: () => player.reloadTime *= 0.85, weight: 0.8, description: "Shoot faster", max: 10, rarity: 1 },
   { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "+1 Max Heath, Heal 2 Hearts", max: 5, rarity: 0 },
-  { name: "Projectile Speed", f: () => player.projectileSpeed += 2, weight: 1, description: "Your bullets move faster", max: 10, rarity: 0 },
-  { name: "Damage", f: () => player.dmg += 0.3, weight: 0.6, description: "+0.3 Bullet damage", max: 10, rarity: 2 },
-  { name: "Homing", f: () => { player.homing += 0.3; player.homingRange += 20 }, weight: 0.25, description: "Bullets home toward targets", max: 5, rarity: 3 },
   { name: "Shield Upgrade", f: () => { player.shieldLvl++; player.shield++ }, weight: 0.2, description: "+1 Shield Limit", max: 3, rarity: 3 },
   // { name: "Guardian", f: () => { player.weapons.guardianLvl++ }, weight: 0.3, description: "Adds a spinning blade", max: 5 },
   // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 5}
 ];
 const weapons = [
   {
+    name: "Gun",
+    id: "gun",
+    description: "Starter weapon",
+    weight: 0,
+    rarity: 0,
+    starter: true,
+    onGet: () => {
+      let weaponObject = {}
+      weaponObject = Object.assign(weapons.find(x => x.id == "gun"), weaponObject);
+
+      weaponObject.upgrades.forEach(upgrade => upgrade.times = 0)
+      weaponObject.damage = 1;
+      weaponObject.projectileSpeed = 15;
+      weaponObject.cooldown = 0;
+      weaponObject.lvl = 0;
+      weaponObject.amount = 1;
+      weaponObject.fireRate = 0.15;
+      weaponObject.spread = 0.1;
+      weaponObject.homing = 0;
+      weaponObject.homingRange = 80;
+      player.weapons.push(weaponObject);
+    },
+    upgrades: [
+      {
+        name: "Multishot",
+        onGet: (weapon) => weapon.amount++,
+        weight: 0.1,
+        desc: "+1 Bullet per shot",
+        max: 5,
+        rarity: 4
+      }, {
+        name: "Fire rate",
+        onGet: (weapon) => weapon.fireRate *= 0.85,
+        weight: 0.8,
+        desc: "Shoot faster",
+        max: 10,
+        rarity: 1
+      }, {
+        name: "Projectile Speed",
+        onGet: (weapon) => weapon.projectileSpeed += 4,
+        weight: 1,
+        desc: "Your bullets move faster",
+        max: 10,
+        rarity: 0
+      }, {
+        name: "Damage",
+        onGet: (weapon) => weapon.damage += 0.3,
+        weight: 0.6,
+        desc: "+0.3 Bullet damage",
+        max: 10,
+        rarity: 2
+      }, {
+        name: "Homing",
+        onGet: (weapon) => { weapon.homing += 0.3; weapon.homingRange += 20 },
+        weight: 0.25,
+        desc: "Bullets home toward targets",
+        max: 5,
+        rarity: 3
+      },
+    ],
+    onUpgrade: (weapon) => {
+
+    },
+    tick: (weapon) => {
+      if ((((keyIsDown(32) || mouseIsPressed) && !(prefers.showTouchControls && typeof movementTouch != "undefined" && typeof dirTouch != "undefined")) || prefers.autoFire) && weapon.cooldown <= 0) {
+        let num = round(weapon.amount);
+        for (let i = 0; i < num; i++) {
+          player.stats.bulletsFired++;
+          player.changedStats.bulletsFired++;
+          projectiles.push({
+            type: "gun",
+            pos: player.pos.copy(),
+            vel: p5.Vector.add(player.vel, v(weapon.projectileSpeed, 0).rotate(player.dir + i * weapon.spread - weapon.spread * (num - 1) / 2)),
+            dst: v(0, 0),
+            playerVel: player.vel.copy(),
+            dmg: weapon.damage * (0.7 / (1 + abs(i - (num - 1) / 2)) + 0.3),
+            homing: weapon.homing,
+            homingRange: weapon.homingRange,
+            lastPos: player.pos.copy()
+          });
+          let p = projectiles[projectiles.length - 1];
+          p.pos.add(p.vel);
+          p.pos.sub(player.vel);
+        }
+        weapon.cooldown = weapon.fireRate;
+      } else {
+        weapon.cooldown -= clampTime / 1000;
+      }
+    },
+    projectileTick: (projectile, projectileI) => {
+      projectile.lastPos = projectile.pos.copy();
+      let move = p5.Vector.mult(projectile.vel, clampTime * 0.03);
+      projectile.pos.add(move);
+      projectile.dst.add(move);
+      if (projectile.dst.x > world.size.x / 2 || projectile.dst.y > world.size.y / 2 || projectile.dst.x < -world.size.x / 2 || projectile.dst.y < -world.size.y / 2) {
+        projectiles.splice(projectileI, 1);
+        projectileI--;
+      }
+    },
+    drawTick: (projectile) => {
+      push();
+      translate(projectile.pos.x - player.pos.x, projectile.pos.y - player.pos.y);
+      stroke(255);
+      strokeWeight(5);
+      line(0, 0, -projectile.vel.x + projectile.playerVel.x, -projectile.vel.y + projectile.playerVel.y);
+      pop();
+    },
+    asteroidTick: (projectile, projectileI, asteroid, asteroidI) => {
+      if (lineCircleCollision(projectile.pos, projectile.lastPos, p5.Vector.add(asteroid.pos, asteroid.closest), asteroid.size / 2 + 10)) {
+        projectiles.splice(projectileI, 1);
+        projectileI--;
+        asteroid.hp -= projectile.dmg;
+        if (asteroid.hp <= 0) {
+          asteroids.splice(asteroidI, 1);
+          asteroidI--;
+          astSplit(asteroid, projectile.vel.heading());
+        }
+      }
+
+      let dst = p5.Vector.sub(projectile.pos, asteroid.pos);
+      let mag = dst.mag() + asteroid.size / 2;
+      if (mag < projectile.homingRange) {
+        dst.normalize();
+        dst.mult(projectile.homing / (mag + 200) * 100 + projectile.homing * 0.5);
+        mag = projectile.vel.mag();
+        projectile.vel.normalize();
+        projectile.vel.mult(mag - dst.mag());
+        projectile.vel.sub(dst);
+        projectile.vel.normalize();
+        projectile.vel.mult(mag);
+      }
+    }
+  },
+  {
     name: "Guardian",
     id: "guardian",
     description: "Spawns a spinning blade",
     weight: 0.1,
     rarity: 3,
+    starter: false,
     onGet: () => {
       let weaponObject = {}
       weaponObject = Object.assign(weapons.find(x => x.id == "guardian"), weaponObject);
@@ -157,25 +286,29 @@ const weapons = [
         name: "Extra Guardian",
         desc: "Adds an extra guardian",
         onGet: (weapon) => weapon.amount++,
-        max: 2
+        max: 2,
+        weight: 0.2
       },
       {
         name: "Damage Up",
         desc: "Increases damage dealt on contact",
-        onGet: (weapon) => weapon.power += 0.75,
-        max: 3
+        onGet: (weapon) => weapon.power += 0.5,
+        max: 3,
+        weight: 0.3
       },
       {
         name: "Speed Up",
         desc: "Increases speed guardians spin",
-        onGet: (weapon) => weapon.projectileSpeed += 3,
-        max: 3
+        onGet: (weapon) => weapon.projectileSpeed += 2,
+        max: 3,
+        weight: 0.1
       },
       {
         name: "Area Up",
         desc: "Increases guardian size",
         onGet: (weapon) => weapon.area += 0.25,
-        max: 4
+        max: 4,
+        weight: 0.3
       },
       {
         name: "Duration Up",
@@ -184,7 +317,8 @@ const weapons = [
           weapon.duration += 1.25
           weapon.fireRate -= 1.25
         },
-        max: 4
+        max: 4,
+        weight: 0.15
       }
     ],
     onUpgrade: (weapon) => {
@@ -230,7 +364,7 @@ const weapons = [
       fill(0);
       ellipse(0, 0, 1, 1);
       fill(255);
-      for (let r = 0; r < 1; r += 1 / 8) {
+      for (let r = 0; r < 1; r += 1 / (1 + projectile.dmg * 4)) {
         push();
         rotate(r * 2 * PI);
         triangle(0.5, 0.07, 0.5, -0.07, 0.6, 0);
@@ -244,7 +378,7 @@ const weapons = [
       let pos = v(projectile.dst, 0).rotate(projectile.rot).add(player.pos);
       let lastPos = v(projectile.dst, 0).rotate(projectile.rot - projectile.speed * clampTime / 1000).add(player.pos);
       if (lineCircleCollision(pos, lastPos, p5.Vector.add(asteroid.pos, asteroid.closest), asteroid.size / 2 + projectile.rad + 5)) {
-        asteroid.hp -= projectile.dmg * player.dmg;
+        asteroid.hp -= projectile.dmg;
         if (asteroid.hp <= 0) {
           astSplit(asteroid, projectile.dir?.heading() || 0);
           asteroids.splice(asteroidIndex, 1);
@@ -676,7 +810,6 @@ function setupVars() {
   pauseBtns = [];
   oldBtns = [];
   asteroids = [];
-  bullets = [];
   explosions = [];
   world.pickups = [];
   asteroidSpawnTimer = 0;
@@ -689,7 +822,6 @@ function setupVars() {
     vel: v(0, 0),
     dir: 0,
     dirVel: 0,
-    reload: 0,
     hp: 5,
     maxHp: 5,
     alive: true,
@@ -716,23 +848,13 @@ function setupVars() {
       upgrades: 0
     },
     iframe: 0,
-    xp: 0,
+    xp: 100,
     lvlUp: 50,
     lvl: 0,
     speed: 0.4,
-    multishot: 1,
-    reloadTime: 5,
-    spread: 0.1,
     shield: 0,
     shieldLvl: 0,
-    projectileSpeed: 15,
-    projectileSize: 5,
-    dmg: 1,
-    homing: 0,
-    homingRange: 80,
-    weapons: [
-
-    ]
+    weapons: []
   };
   for (let i = 0; i < 10; i += 0.3 / (i + 2)) {
     asteroids.push({ pos: v(i * world.size.mag() / 10 + 100, 0).rotate(random() * 2 * PI), vel: v(random() * 3, 0).rotate(random() * 2 * PI), size: random() * 20 + 20 });
@@ -744,6 +866,10 @@ function setupVars() {
     asteroids = [];
     levelUp = true;
     startLevelUp(true);
+  });
+
+  weapons.forEach((e) => {
+    if (e.starter) e.onGet();
   });
 
   // testing, all pickups
@@ -861,30 +987,11 @@ function draw() {
         if (levelUp && levelUpgrades.length == 0) {
           startLevelUp();
         }
-        if ((((keyIsDown(32) || mouseIsPressed) && !(prefers.showTouchControls && typeof movementTouch != "undefined" && typeof dirTouch != "undefined")) || prefers.autoFire) && player.reload <= 0) {
-          let num = round(player.multishot);
-          for (let i = 0; i < num; i++) {
-            player.stats.bulletsFired++;
-            player.changedStats.bulletsFired++;
-            bullets.push({
-              pos: player.pos.copy(),
-              vel: p5.Vector.add(player.vel, v(player.projectileSpeed, 0).rotate(player.dir + i * player.spread - player.spread * (num - 1) / 2)),
-              dst: v(0, 0),
-              playerVel: player.vel.copy(),
-              dmg: player.dmg * (0.7 / (1 + abs(i - (num - 1) / 2)) + 0.3)
-            });
-            bullets[bullets.length - 1].pos.add(p5.Vector.mult(p5.Vector.sub(bullets[bullets.length - 1].vel, player.vel), 1.5));
-          }
-          player.reload = player.reloadTime;
-        } else {
-          player.reload -= clampTime * 0.03;
-        }
         if (player.hp <= 0) {
 
           player.alive = false;
           world.screenshake.set(8, 8, 1)
           explosions.push({ pos: player.pos.copy(), vel: player.vel.copy(), size: 70, tick: 0 });
-          bullets = [];
 
           showDeathScreen();
 
@@ -964,7 +1071,6 @@ function draw() {
           }
         }
       });
-      tickBullets();
       explosions.forEach((e, i) => {
         if (e.tick >= 2) {
           explosions.splice(i, 1);
@@ -1067,10 +1173,6 @@ function draw() {
           if (p5.Vector.sub(p5.Vector.add(a.pos, v(xOff, yOff)), player.pos).mag() < p5.Vector.sub(p5.Vector.add(a.pos, a.closest), player.pos).mag()) {
             a.closest = v(xOff, yOff);
           }
-        });
-        bullets.forEach((b) => {
-          strokeWeight(player.projectileSize);
-          line(b.pos.x, b.pos.y, b.pos.x - (b.vel.x - b.playerVel.x), b.pos.y - (b.vel.y - b.playerVel.y));
         });
         pop();
       }
@@ -1226,55 +1328,6 @@ addEventListener("resize", updateCanvasSize);
 document.getElementById("showTouchControls").addEventListener("input", () => setTimeout(updateCanvasSize, 50));
 resolution.addEventListener("input", updateCanvasSize)
 
-function tickBullets() {
-  bullets.forEach((bullet, i) => {
-    bullet.lastPos = bullet.pos.copy();
-    bullet.pos.add(p5.Vector.mult(bullet.vel, clampTime * 0.03));
-    bullet.dst.add(p5.Vector.mult(p5.Vector.sub(bullet.vel, player.vel), clampTime * 0.03));
-    let s = -bullet.vel.mag();
-    if (bullet.dst.x > world.size.x / 2 + s || bullet.dst.y > world.size.y / 2 + s || bullet.dst.x < -world.size.x / 2 - s || bullet.dst.y < -world.size.y / 2 - s) {
-      bullets.splice(i, 1);
-    } else {
-      bullet.pos.x = (bullet.pos.x + world.size.x / 2) % world.size.x - world.size.x / 2;
-      bullet.pos.y = (bullet.pos.y + world.size.y / 2) % world.size.y - world.size.y / 2;
-      let run = true;
-      for (let offX = -world.size.x; offX <= world.size.x; offX += world.size.x) {
-        for (let offY = -world.size.y; offY <= world.size.y; offY += world.size.y) {
-          asteroids.filter(asteroid => p5.Vector.sub(p5.Vector.add(bullet.pos, v(offX, offY)), asteroid.pos).mag() < Math.max(player.homingRange, player.projectileSize * 1.2) + asteroid.size / 2).forEach((asteroid, ti) => {
-            if (run) {
-              let baseDst = p5.Vector.sub(bullet.pos, asteroid.pos);
-              let dst = p5.Vector.add(baseDst, v(offX, offY));
-              if (lineCircleCollision(p5.Vector.add(bullet.pos, v(offX, offY)), p5.Vector.add(bullet.lastPos, v(offX, offY)), asteroid.pos, asteroid.size / 2 + 10 + player.projectileSize * 1.2)) {
-                bullets.splice(i, 1);
-                player.stats.bulletsHit++;
-                player.changedStats.bulletsHit++;
-                run = false;
-                i--;
-                asteroid.hp -= bullet.dmg;
-                if (asteroid.hp <= 0) {
-                  astSplit(asteroid, bullet.vel.heading());
-                  asteroids.splice(asteroids.indexOf(asteroid), 1);
-                  ti--;
-                }
-              } else if (dst.mag() + asteroid.size / 2 < player.homingRange && player.homing > 0) {
-                let mag = dst.mag() + asteroid.size / 2;
-                dst.normalize();
-                dst.mult(player.homing / (mag + 200) * 100 + player.homing * 0.5);
-                mag = bullet.vel.mag();
-                bullet.vel.normalize();
-                bullet.vel.mult(mag - dst.mag());
-                bullet.vel.sub(dst);
-                bullet.vel.normalize();
-                bullet.vel.mult(mag);
-              }
-            }
-          });
-        }
-      }
-    }
-  });
-}
-
 function drawPauseMenu() {
   document.getElementById("control").innerHTML = ["AD Turning", "Mouse + WASD", "WASD + Arrow Turning"][prefers.controls];
 }
@@ -1352,14 +1405,14 @@ function startLevelUp(isFirstUpgrade) {
       playerWeapons.forEach(playerWeapon => {
         playerWeapon.upgrades.forEach((upgrade, i) => {
           if (upgrade.times < upgrade.max) {
-            for (let n = 0; n < 0.5; n += 0.05) {
-              choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon.onUpgrade(weapon) }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade })
+            for (let n = 0; n < upgrade.weight; n += 0.05) {
+              choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon.onUpgrade(weapon) }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade, rarity: upgrade.rarity })
             }
           }
-        })
-      })
+        });
+      });
     }
-  })
+  });
   levelUpgrades = [];
   if (choices.length > 0) {
     for (let n = 0; n < 3; n++) {
@@ -1405,12 +1458,12 @@ async function showDeathScreen() {
   const fullHighscore = Object.values(JSON.parse(localStorage.getItem("highscore"))).reduce((a, b) => a + b, 0);
   const deathScreen = document.getElementById("deathDialog");
 
-  async function tryUsername(wasInvalid=false) {
+  async function tryUsername(wasInvalid = false) {
     try {
       await setUsername(wasInvalid)
-    } catch(e) {
+    } catch (e) {
       vex.closeAll()
-      await new Promise((r) => setTimeout(r, 700)); 
+      await new Promise((r) => setTimeout(r, 700));
       await tryUsername(true)
     }
   }
