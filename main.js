@@ -1,4 +1,4 @@
-const version = "3.8.1";
+const version = "3.8.2";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -224,17 +224,30 @@ const weapons = [
         projectiles.splice(projectileI, 1);
         projectileI--;
       }
+      let closestDst = world.size.mag();
+      let closest = v(0, 0);
+      let relPos = p5.Vector.sub(projectile.pos, player.pos);
+      for (let x = -world.size.x; x <= world.size.x; x += world.size.x) {
+        for (let y = -world.size.y; y <= world.size.y; y += world.size.y) {
+          let dst = p5.Vector.add(relPos, v(x, y)).mag();
+          if (dst < closestDst) {
+            closestDst = dst;
+            closest = v(x, y);
+          }
+        }
+      }
+      projectile.closest = closest;
     },
     drawTick: (projectile) => {
       push();
-      translate(projectile.pos.x - player.pos.x, projectile.pos.y - player.pos.y);
+      translate(projectile.pos.x - player.pos.x + projectile.closest.x, projectile.pos.y - player.pos.y + projectile.closest.y);
       stroke(255);
       strokeWeight(5);
       line(0, 0, -projectile.vel.x + projectile.playerVel.x, -projectile.vel.y + projectile.playerVel.y);
       pop();
     },
     asteroidTick: (projectile, projectileI, asteroid, asteroidI) => {
-      if (lineCircleCollision(projectile.pos, projectile.lastPos, p5.Vector.add(asteroid.pos, asteroid.closest), asteroid.size / 2 + 10)) {
+      if (lineCircleCollision(projectile.pos, projectile.lastPos, p5.Vector.sub(p5.Vector.add(asteroid.pos, asteroid.closest), projectile.closest), asteroid.size / 2 + 10)) {
         projectiles.splice(projectileI, 1);
         projectileI--;
         asteroid.hp -= projectile.dmg;
