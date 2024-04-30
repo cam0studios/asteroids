@@ -20,7 +20,7 @@ var asteroids,
   pause,
   pauseBtns,
   oldBtns,
-  prefers = { controls: 1, showArrows: true, doScreenshake: true, minimap: true, showTouchControls: false, touchControlHeight: 150 },
+  prefers = { controls: 1, showArrows: true, doScreenshake: true, minimap: true, showTouchControls: false, touchControlHeight: 150, toggleFire: false },
   timer,
   levelUp,
   levelUpgrades,
@@ -607,7 +607,7 @@ function setup() {
           }
           s1 = p5.Vector.sub(p, v(size.x / 2, size.y + prefers.touchControlHeight / 2));
           if (s1.x > -30 && s1.x < 30 && s1.y > -30 && s1.y < 30) {
-            player.toggleFire = !player.toggleFire;
+            prefers.autoFire = !prefers.autoFire;
           }
         }
       });
@@ -730,7 +730,6 @@ function setupVars() {
     dmg: 1,
     homing: 0,
     homingRange: 80,
-    toggleFire: false,
     weapons: [
 
     ]
@@ -862,7 +861,7 @@ function draw() {
         if (levelUp && levelUpgrades.length == 0) {
           startLevelUp();
         }
-        if ((((keyIsDown(32) || mouseIsPressed) && !(prefers.showTouchControls && typeof movementTouch != "undefined" && typeof dirTouch != "undefined")) || player.toggleFire) && player.reload <= 0) {
+        if ((((keyIsDown(32) || mouseIsPressed) && !(prefers.showTouchControls && typeof movementTouch != "undefined" && typeof dirTouch != "undefined")) || prefers.autoFire) && player.reload <= 0) {
           let num = round(player.multishot);
           for (let i = 0; i < num; i++) {
             player.stats.bulletsFired++;
@@ -1187,8 +1186,8 @@ function draw() {
       strokeWeight(5);
       circle(size.x - 125 + dirTouch.pos.x, dirTouch.pos.y, 30);
       //toggle fire
-      fill(player.toggleFire ? 120 : 80);
-      stroke(player.toggleFire ? 110 : 70);
+      fill(prefers.autoFire ? 120 : 80);
+      stroke(prefers.autoFire ? 110 : 70);
       strokeWeight(10);
       rect(size.x / 2 - 30, -30, 60, 60, 5);
       pop();
@@ -1681,6 +1680,6 @@ document.addEventListener("keydown", (e) => {
     pause = !pause;
     if (pause) pauseGame();
   } else if (e.key == "z") {
-    player.toggleFire = !player.toggleFire;
+    prefers.autoFire = !prefers.autoFire;
   }
 });
