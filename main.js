@@ -40,7 +40,7 @@ var asteroids,
       }
     }
   },
-  username,
+  username = localStorage.getItem("username"),
   maxFight,
   tick,
   bossFight,
@@ -71,17 +71,51 @@ if (typeof JSON.parse(localStorage.getItem("highscore")) != "object") {
   }))
 }
 
-if (!localStorage.getItem("username")) {
-  username = prompt("Enter a username", defaultUsername) || defaultUsername;
-  localStorage.setItem("username", username)
-} else {
-  username = localStorage.getItem("username") || defaultUsername;
+function isUsernameValid(username) {
+  return username.trim().length <= 20 && username.trim().length !== 0
+}
+
+function setUsername(wasInvalid) {
+  return new Promise((res, rej) => {
+    vex.dialog.prompt({
+      message: wasInvalid ? "Your username must be between 1 and 20 characters long, please pick a new one." : "You'll need a username to be added to the leaderboard.",
+      placeholder: 'Spaceman',
+      callback: function (value) {
+        if (value === undefined) value = ""
+        if (isUsernameValid(value)) {
+          value = value.trim()
+          username = value
+          localStorage.setItem("username", value)
+          setUser({}, { username })
+          res(username)
+        } else {
+          rej(value)
+        }
+      }
+    })
+  })
 }
 
 function changeUsername() {
-  username = prompt("Change your username", username) || defaultUsername;
-  localStorage.setItem("username", username);
-  setUser({}, { username });
+  document.getElementById("pauseMenu").close()
+  pause = true
+  vex.dialog.prompt({
+    message: 'Enter a new username',
+    placeholder: localStorage.getItem("username") || 'Spaceman',
+    callback: function (value) {
+      if (!value) value = ""
+      if (isUsernameValid(value)) {
+        value = value.trim()
+        username = value
+        localStorage.setItem("username", value)
+        setUser({}, { username })
+        pause = false
+      } else {
+        alert("Your username is invalid. Usernames must be 20 characters or less.")
+        pause = false
+      }
+    }
+  })
 }
 
 const upgrades = [
@@ -710,7 +744,7 @@ function setupVars() {
     document.getElementById("startMenu").close();
     asteroids = [];
     levelUp = true;
-    startLevelUp();
+    startLevelUp(true);
   });
 
   // testing, all pickups
@@ -1245,7 +1279,23 @@ function tickBullets() {
 function drawPauseMenu() {
   document.getElementById("control").innerHTML = ["AD Turning", "Mouse + WASD", "WASD + Arrow Turning"][prefers.controls];
 }
+
+function getCanPause() {
+  let response = true
+  document.querySelectorAll("dialog[open]").forEach((dialog) => {
+    if (dialog.id !== "pauseMenu") response = false
+  })
+  if (Object.keys(vex.getAll()).length > 0) {
+    response = false // Prompt or alert is currently active!!!!
+  }
+  return response
+}
+
 function pauseGame() {
+  let canPause = getCanPause()
+  if (!canPause) {
+    return
+  }
   setTimeout(() => {
     pause = true;
 
@@ -1282,7 +1332,7 @@ function pauseGame() {
   })
 })
 
-function startLevelUp() {
+function startLevelUp(isFirstUpgrade) {
   player.stats.upgrades++;
   player.changedStats.upgrades++;
   let choices = [];
@@ -1324,6 +1374,11 @@ function startLevelUp() {
     levelUpgrades.push({ name: "XP", f: () => { player.score.other += 2000 }, description: "Adds 2000 xp", i: -1, type: "normal" });
     levelUpgrades.push({ name: "Health", f: () => { player.hp += 1 }, description: "Restores 1 additional health", i: -1, type: "normal" });
   }
+  if (isFirstUpgrade === true) {
+    document.querySelector("#levelUpDialog > h1").innerText = "Pick a starter"
+  } else {
+    document.querySelector("#levelUpDialog > h1").innerText = "Level Up!"
+  }
   document.getElementById("levelUpDialog").showModal();
 
   document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => {
@@ -1350,6 +1405,22 @@ async function showDeathScreen() {
   const fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
   const fullHighscore = Object.values(JSON.parse(localStorage.getItem("highscore"))).reduce((a, b) => a + b, 0);
   const deathScreen = document.getElementById("deathDialog");
+
+  async function tryUsername(wasInvalid=false) {
+    try {
+      await setUsername(wasInvalid)
+    } catch(e) {
+      vex.closeAll()
+      await new Promise((r) => setTimeout(r, 700)); 
+      await tryUsername(true)
+    }
+  }
+  if (!localStorage.getItem("username")) {
+    pause = true
+    await tryUsername(false)
+    pause = false
+  }
+
   deathScreen.showModal();
   deathScreen.querySelector("span").innerHTML = `
     Your score: ${fullPlayerScore.toLocaleString()}<br>
@@ -1606,6 +1677,7 @@ function astSplit(a, dir) {
 
 document.addEventListener("keydown", (e) => {
   if (e.key == "Escape") {
+    if (!getCanPause()) return
     pause = !pause;
     if (pause) pauseGame();
   } else if (e.key == "z") {
