@@ -1,4 +1,4 @@
-const version = "3.8.2";
+const version = "3.9.0";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -407,6 +407,55 @@ const weapons = [
       }
     }
   },
+  {
+    name: "Bomb",
+    id: "bomb",
+    description: "Asteroid bosses only",
+    weight: 0,
+    starter: false,
+    projectileTick: (projectile, i) => {
+      projectile.time += clampTime / 1000;
+      if (projectile.time >= 1) {
+        projectiles.splice(i, 1);
+        i--;
+        explosions.push({ pos: projectile.pos, vel: v(0, 0), size: projectile.rad, tick: 0 });
+        let dst = p5.Vector.sub(player.pos, projectile.pos);
+        if (dst.mag() <= projectile.rad + 25 + (player.shield ? 1 : 0) * 10) {
+          if (player.shield > 0) player.shield--;
+          else player.hp--;
+          player.iframe = 5;
+          dst.normalize();
+          dst.mult(20);
+          player.vel.add(dst);
+        }
+      }
+      
+      let closestDst = world.size.mag();
+      let closest = v(0, 0);
+      let relPos = p5.Vector.sub(projectile.pos, player.pos);
+      for (let x = -world.size.x; x <= world.size.x; x += world.size.x) {
+        for (let y = -world.size.y; y <= world.size.y; y += world.size.y) {
+          let dst = p5.Vector.add(relPos, v(x, y)).mag();
+          if (dst < closestDst) {
+            closestDst = dst;
+            closest = v(x, y);
+          }
+        }
+      }
+      projectile.closest = closest;
+    },
+    drawTick: (projectile) => {
+      push();
+      translate(projectile.pos.x - player.pos.x + projectile.closest.x, projectile.pos.y - player.pos.y + projectile.closest.y);
+      let a = abs(sin(projectile.time * 2.5 * PI));
+      fill(`rgba(200,0,0,${0.2 * a})`);
+      stroke(`rgba(200,0,0,${0.5 * a})`);
+      strokeWeight(10);
+      ellipse(0, 0, projectile.rad * 2, projectile.rad * 2);
+      pop();
+    },
+    asteroidTick: () => { }
+  },
   // {
   //   name: "Laser",
   //   id: "laser",
@@ -640,7 +689,9 @@ const bosses = [
       size: 80,
       hp: 375,
       followPlayer: 0.1,
-      chestItems: 3
+      chestItems: 3,
+      bombs: 2,
+      bombReload: 10
     }
   }, {
     time: 300,
@@ -650,7 +701,9 @@ const bosses = [
       size: 100,
       hp: 600,
       followPlayer: 0.3,
-      chestItems: 3
+      chestItems: 3,
+      bombs: 3,
+      bombReload: 7,
     }
   }, {
     time: 420,
@@ -660,7 +713,9 @@ const bosses = [
       size: 150,
       hp: 1000,
       followPlayer: 0.3,
-      chestItems: 4
+      chestItems: 4,
+      bombs: 5,
+      bombReload: 5
     }
   }, {
     time: 600,
@@ -670,7 +725,9 @@ const bosses = [
       size: 350,
       hp: 2000,
       followPlayer: 0.7,
-      chestItems: 5
+      chestItems: 5,
+      bombs: 7,
+      bombReload: 4
     }
   }, {
     time: 660,
@@ -678,9 +735,11 @@ const bosses = [
       pos: 1000,
       vel: 0,
       size: 50,
-      hp: 300,
+      hp: 500,
       followPlayer: 2,
-      chestItems: 4
+      chestItems: 4,
+      bombs: 10,
+      bombReload: 3
     }
   }, {
     time: 720,
@@ -690,7 +749,9 @@ const bosses = [
       size: 350,
       hp: 3000,
       followPlayer: 0.7,
-      chestItems: 5
+      chestItems: 5,
+      bombs: 12,
+      bombReload: 2.5
     }
   }, {
     time: 900,
@@ -700,7 +761,21 @@ const bosses = [
       size: 500,
       hp: 5000,
       followPlayer: 2.5,
-      chestItems: 6
+      chestItems: 6,
+      bombs: 15,
+      bombReload: 2
+    }
+  }, {
+    time: 1020,
+    data: {
+      pos: 1000,
+      vel: 0,
+      size: 300,
+      hp: 5000,
+      followPlayer: 2,
+      chestItems: 5,
+      bombs: 20,
+      bombReload: 1.5
     }
   }
 ];
@@ -932,6 +1007,7 @@ function draw() {
             boss.original = true;
             boss.boss = true;
             boss.type = i;
+            boss.bombCooldown = 0;
             for (let key in boss) {
               let prop = boss[key];
               if (key == "pos" && typeof prop == "number") {
@@ -1033,6 +1109,17 @@ function draw() {
           astSplit(e, random() * 2 * PI);
           asteroids.splice(i, 1);
           i--;
+        }
+        if (e.boss && e.bombs > 0) {
+          if (e.bombCooldown <= 0) {
+            e.bombCooldown = e.bombReload;
+            for (let i = 0; i < e.bombs; i++) {
+              let s = sqrt(e.bombs * 50000);
+              projectiles.push({ type: "bomb", pos: p5.Vector.add(player.pos, v(s * (random() - 0.5), s * (random() - 0.5))), time: 0, rad: 50 });
+            }
+          } else {
+            e.bombCooldown -= clampTime / 1000;
+          }
         }
         e.pos.add(p5.Vector.mult(e.vel, clampTime * 0.03));
         if (e.pos.x > world.size.x / 2) {
