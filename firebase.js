@@ -86,13 +86,14 @@ window.setUser = async function (props, data) {
       kills: 0,
       pickups: 0,
       runs: 0,
+      timePlayed: 0,
       username: localStorage.getItem("username")
     }
   } else {
     let oldData = await getUser(id);
     if (relative) {
       Object.keys(data).forEach((e) => {
-        if (parseFloat(oldData[e])) data[e] += oldData[e];
+        if (!isNaN(parseFloat(oldData?.[e]))) data[e] += oldData[e];
       });
     }
     Object.keys(oldData).forEach((e) => {

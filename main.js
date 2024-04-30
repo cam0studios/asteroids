@@ -803,6 +803,7 @@ function setup() {
   }
   setupVars();
   setInterval(() => {
+    player.changedStats.username = username;
     setUser({ relative: true }, JSON.parse(JSON.stringify(player.changedStats)));
     Object.keys(player.changedStats).forEach((k) => {
       player.changedStats[k] = 0;
@@ -827,7 +828,7 @@ function setupVars() {
   world.pickups = [];
   asteroidSpawnTimer = 0;
   asteroidSpawnRate = 250;
-  asteroidSpeed = 1.5;
+  asteroidSpeed = 2;
   timer = 0;
   started = false;
   player = {
@@ -858,7 +859,8 @@ function setupVars() {
       chests: 0,
       bulletsFired: 0,
       bulletsHit: 0,
-      upgrades: 0
+      upgrades: 0,
+      timePlayed: 0
     },
     iframe: 0,
     xp: 0,
@@ -896,16 +898,15 @@ function setupVars() {
 function draw() {
   clampTime = Math.min(deltaTime, 100);
   if (started) {
-    tick++;
-
-    if (tick < 15) asteroidSpawnTimer = 0;
-
     if (!pause && !levelUp) {
+      tick++;
+      player.changedStats.timePlayed += clampTime / 1000;
       if (bossFight) {
         if (asteroids.filter(e => e.boss && e.original).length == 0) {
           bossFight = false;
         }
       } else {
+        if (tick < 15) asteroidSpawnTimer = 0;
         if (asteroidSpawnTimer <= 0 && player.alive) {
           asteroidSpawnTimer = asteroidSpawnRate;
           asteroidSpawnRate *= 0.925;
@@ -1520,6 +1521,7 @@ async function showDeathScreen() {
     document.getElementById("totalStats").innerHTML = `
     <h2>Total stats:</h2>
     <span>Runs: ${user.runs}</span><br>
+    <span>Time played: ${floor(user.timePlayed / 3600)}:${floor(user.timePlayed / 60)}</span><br>
     <span>Kills: ${user.kills}</span><br>
     <span>Shots fired: ${user.bulletsFired}</span><br>
     <span>Shots hit: ${user.bulletsHit}</span><br>
