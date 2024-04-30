@@ -848,7 +848,7 @@ function setupVars() {
       upgrades: 0
     },
     iframe: 0,
-    xp: 100,
+    xp: 0,
     lvlUp: 50,
     lvl: 0,
     speed: 0.4,
