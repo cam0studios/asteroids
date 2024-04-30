@@ -51,7 +51,7 @@ window.submitScore = async function (username, time, score, version) {
         userId: localStorage.getItem("userId")
       })
     }
-}
+  }
 }
 window.getScores = async function (startAtObject) {
   const collectionName = "highscores2",
@@ -71,12 +71,12 @@ window.getUser = async function (id = localStorage.getItem("userId")) {
   if (snap.exists()) {
     return snap.data();
   } else {
-    setUser(id);
+    setUser({ id: id, relative: false });
   }
 }
 window.setUser = async function (props, data) {
-  let relative = Object.hasOwn(props,"relative") ? props.relative : true;
-  let id = Object.hasOwn(props,"id") ? props.id : localStorage.getItem("userId");
+  let relative = Object.hasOwn(props, "relative") ? props.relative : true;
+  let id = Object.hasOwn(props, "id") ? props.id : localStorage.getItem("userId");
   if (typeof data != "object") {
     data = {
       username: "",
@@ -90,17 +90,17 @@ window.setUser = async function (props, data) {
     }
   } else {
     let oldData = await getUser(id);
-    if(relative) {
+    if (relative) {
       Object.keys(data).forEach((e) => {
-        if(parseFloat(oldData[e])) data[e] += oldData[e];
+        if (parseFloat(oldData[e])) data[e] += oldData[e];
       });
     }
     Object.keys(oldData).forEach((e) => {
-      if(!Object.hasOwn(data,e)) data[e] = oldData[e];
+      if (!Object.hasOwn(data, e)) data[e] = oldData[e];
     });
   }
   let docRef = doc(db, "users", id);
-  setDoc(docRef,data);
+  setDoc(docRef, data);
 }
 
 //analytics
