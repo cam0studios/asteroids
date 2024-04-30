@@ -135,7 +135,7 @@ const weapons = [
     name: "Guardian",
     id: "guardian",
     description: "Spawns a spinning blade",
-    weight: 100.1,
+    weight: 0.1,
     rarity: 3,
     onGet: () => {
       let weaponObject = {}
