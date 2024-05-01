@@ -1,4 +1,4 @@
-const version = "3.9.0";
+const version = "3.9.1";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -1115,7 +1115,7 @@ function draw() {
             e.bombCooldown = e.bombReload;
             for (let i = 0; i < e.bombs; i++) {
               let s = sqrt(e.bombs * 50000);
-              projectiles.push({ type: "bomb", pos: p5.Vector.add(player.pos, v(s * (random() - 0.5), s * (random() - 0.5))), time: 0, rad: 50 });
+              projectiles.push({ type: "bomb", pos: p5.Vector.add(player.pos, v(s * (random() - 0.5), s * (random() - 0.5))), time: 0, rad: 50, closest: v(0, 0) });
             }
           } else {
             e.bombCooldown -= clampTime / 1000;
