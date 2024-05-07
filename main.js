@@ -1637,7 +1637,7 @@ function renderHighscores(highscores, i = null) {
     let htmlString = `${i}. <b>${data.username}</b>: ${data.total.toLocaleString()} - ${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
 
     if (Object.hasOwn(data, "version") && data.version !== version) {
-      htmlString = `<span class="wrongVersion" title="This record was acheived on version ${data.version}, the game may have been rebalenced since then.">${htmlString}</span>`
+      htmlString = `<span class="wrongVersion" title="This record was achieved on version ${data.version}, the game may have been rebalanced since then.">${htmlString}</span>`
     }
 
     document.getElementById("leaderboard").innerHTML += htmlString + "<br>";
