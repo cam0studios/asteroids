@@ -1,4 +1,4 @@
-const version = "3.9.1";
+const version = "3.10.0";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -120,7 +120,7 @@ function changeUsername() {
 const upgrades = [
   { name: "Speed", f: () => player.speed += 0.2, weight: 1, description: "Your ship moves faster", max: 5, rarity: 0 },
   { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "+1 Max Heath, Heal 2 Hearts", max: 5, rarity: 0 },
-  { name: "Shield Upgrade", f: () => { player.shieldLvl++; player.shield++ }, weight: 0.2, description: "+1 Shield Limit", max: 3, rarity: 3 },
+  { name: "Shield Upgrade", f: () => { player.shieldLvl++; player.shield++; player.shieldRegenTime -= 20 }, weight: 0.2, description: "+1 Shield Limit", max: 3, rarity: 3 },
   // { name: "Guardian", f: () => { player.weapons.guardianLvl++ }, weight: 0.3, description: "Adds a spinning blade", max: 5 },
   // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 5}
 ];
@@ -429,7 +429,7 @@ const weapons = [
           player.vel.add(dst);
         }
       }
-      
+
       let closestDst = world.size.mag();
       let closest = v(0, 0);
       let relPos = p5.Vector.sub(projectile.pos, player.pos);
@@ -456,6 +456,177 @@ const weapons = [
     },
     asteroidTick: () => { }
   },
+  {
+    name: "Missile",
+    id: "missile",
+    description: "Launches missiles at asteroids",
+    weight: 0.1,
+    rarity: 3,
+    starter: false,
+    onGet: () => {
+      let weaponObject = {}
+      weaponObject = Object.assign(weapons.find(x => x.id == "missile"), weaponObject);
+
+      weaponObject.upgrades.forEach(upgrade => upgrade.times = 0)
+      weaponObject.power = 3;
+      weaponObject.duration = 5;
+      weaponObject.projectileSpeed = 300;
+      weaponObject.cooldown = 0;
+      weaponObject.lvl = 0;
+      weaponObject.amount = 5;
+      weaponObject.fireRate = 15;
+      weaponObject.area = 1;
+      weaponObject.fireCooldown = 0;
+      weaponObject.fired = -1;
+      player.weapons.push(weaponObject)
+    },
+    onUpgrade: (weapon) => {
+      weapon.cooldown = 0;
+    },
+    upgrades: [
+      {
+        name: "Count",
+        desc: "Fire more missiles",
+        onGet: (weapon) => { weapon.amount += 2 },
+        max: 5,
+        weight: 0.5
+      }, {
+        name: "Explosion",
+        desc: "Missiles are bigger and do more damage",
+        onGet: (weapon) => { weapon.power++; weapon.area += 15 },
+        max: 5,
+        weight: 0.3
+      }, {
+        name: "Fire rate",
+        desc: "Fire more often",
+        onGet: (weapon) => { weapon.fireRate -= 1.5 },
+        max: 5,
+        weight: 0.4
+      }
+    ],
+    tick: (weapon) => {
+      if (weapon.cooldown <= 0) {
+        if (weapon.fired >= weapon.amount) {
+          weapon.cooldown = weapon.fireRate;
+          weapon.fired = -1;
+        } else {
+          if (weapon.fired == -1) {
+            weapon.fired = 0;
+            weapon.fireCooldown = 0;
+          }
+          if (weapon.fireCooldown <= 0) {
+            weapon.fireCooldown = 0.02;
+            let closest = asteroids.sort((a, b) => p5.Vector.sub(player.pos, p5.Vector.add(a.pos, a.closest)).mag() - p5.Vector.sub(player.pos, p5.Vector.add(b.pos, b.closest)).mag());
+            if (closest.length > 0) {
+              closest = closest[0];
+              let dst = p5.Vector.sub(p5.Vector.add(closest.pos, closest.closest), player.pos);
+              dst.add(p5.Vector.mult(closest.vel, dst / weapon.projectileSpeed));
+              dst.setMag(weapon.projectileSpeed);
+              projectiles.push({ type: "missile", pos: player.pos.copy(), vel: dst, life: weapon.duration, swerve: 0.5, swerveT: (random() - 0.5) * 1 * PI, swerveSpeed: 7, realVel: v(0, 0), dmg: weapon.power, area: weapon.area });
+              let proj = projectiles[projectiles.length - 1];
+              proj.pos.add(p5.Vector.mult(p5.Vector.rotate(proj.vel, PI / 2), (random() - 0.5) * 0.5));
+            }
+            weapon.fired++;
+          } else {
+            weapon.fireCooldown -= clampTime / 1000;
+          }
+        }
+      } else {
+        weapon.cooldown -= clampTime / 1000;
+      }
+    },
+    projectileTick: (projectile, i) => {
+      let vel = projectile.vel.copy();
+      vel.rotate(cos(projectile.swerveT) * projectile.swerve);
+      projectile.realVel = vel;
+      projectile.pos.add(p5.Vector.mult(vel, clampTime / 1000));
+      projectile.life -= clampTime / 1000;
+      if (projectile.life <= 0) {
+        projectiles.splice(i, 1);
+        i--;
+      }
+      projectile.swerveT += projectile.swerveSpeed * clampTime / 1000;
+    },
+    drawTick: (projectile) => {
+      push();
+      translate(projectile.pos.x - player.pos.x, projectile.pos.y - player.pos.y);
+      rotate(projectile.realVel.heading());
+      fill(250);
+      stroke(250);
+      strokeWeight(1);
+      rect(-15, -3, 20, 6);
+      triangle(5, -3, 5, 3, 15, 0);
+      triangle(-12, -7, -12, 7, -5, 0);
+      pop();
+    },
+    asteroidTick: (projectile, projectileI, asteroid, asteroidI) => {
+      if (p5.Vector.sub(projectile.pos, asteroid.pos).mag() < asteroid.size / 2 + projectile.area) {
+        projectiles.splice(projectileI, 1);
+        projectileI--;
+        asteroid.hp -= projectile.dmg;
+        explosions.push({ pos: projectile.pos, vel: v(0, 0), size: projectile.area, tick: 0 });
+        if (asteroid.hp <= 0) {
+          asteroids.splice(asteroidI, 1);
+          asteroidI--;
+          astSplit(asteroid, projectile.vel.heading());
+        }
+      }
+    }
+  }
+  /*{
+    name: "Template",
+    id: "template",
+    description: "Template weapon",
+    weight: 0.1,
+    rarity: 3,
+    starter: false,
+    onGet: () => {
+      let weaponObject = {}
+      weaponObject = Object.assign(weapons.find(x => x.id == "template"), weaponObject);
+
+      weaponObject.upgrades.forEach(upgrade => upgrade.times = 0)
+      weaponObject.power = 5;
+      weaponObject.duration = 5;
+      weaponObject.projectileSpeed = 1;
+      weaponObject.cooldown = 0;
+      weaponObject.lvl = 0;
+      weaponObject.amount = 1;
+      weaponObject.fireRate = 2;
+      weaponObject.area = 1;
+      player.weapons.push(weaponObject)
+    },
+    onUpgrade: (weapon) => {
+      weapon.cooldown = 0;
+    },
+    upgrades: [
+      {
+        name: "",
+        desc: "",
+        onGet: (weapon) => {},
+        max: 5,
+        weight: 0.5
+      }
+    ],
+    tick: (weapon) => {
+      if (weapon.cooldown <= 0) {
+        weapon.cooldown = weapon.fireRate;
+        projectiles.push({ type: "template" });
+      } else {
+        weapon.cooldown -= clampTime / 1000;
+      }
+    },
+    projectileTick: (projectile, i) => {
+
+    },
+    drawTick: (projectile) => {
+      push();
+      translate(projectile.pos.x - player.pos.x, projectile.pos.y - player.pos.y);
+      pop();
+    },
+    asteroidTick: (projectile, projectileI, asteroid, asteroidI) => {
+
+    }
+  },*/
   // {
   //   name: "Laser",
   //   id: "laser",
@@ -582,7 +753,7 @@ const pickupData = [
       player.changedStats.chests++;
       let gotten = [];
       for (let i = 0; i < e.amount; i++) {
-        let choices = upgrades.map((u, i) => { return { e: u, i: i } }).filter(u => u.e.times < u.e.max).map(u => { return { i: u.i, type: "upgrade" } })
+        let choices = upgrades.map((u, i) => ({ e: u, i: i })).filter(u => u.e.times < u.e.max).map(u => ({ i: u.i, type: "upgrade" }))
         player.weapons.forEach(weapon => {
           weapon.upgrades.forEach(upgrade => {
             if (upgrade.times < upgrade.max) choices.push({ type: "weapon", w: weapon, u: upgrade })
@@ -944,7 +1115,9 @@ function setupVars() {
     speed: 0.4,
     shield: 0,
     shieldLvl: 0,
-    weapons: []
+    weapons: [],
+    shieldRegen: 120,
+    shieldRegenTime: 120
   };
   for (let i = 0; i < 10; i += 0.3 / (i + 2)) {
     asteroids.push({ pos: v(i * world.size.mag() / 10 + 100, 0).rotate(random() * 2 * PI), vel: v(random() * 3, 0).rotate(random() * 2 * PI), size: random() * 20 + 20 });
@@ -1023,7 +1196,7 @@ function draw() {
       player.pos.add(p5.Vector.mult(player.vel, clampTime * 0.03));
       player.vel.mult(0.95);
       if (player.alive) {
-        timer += clampTime * 0.001;
+        timer += clampTime / 1000;
 
         let joy = v(keyIsDown(68) - keyIsDown(65), keyIsDown(83) - keyIsDown(87)).normalize();
         if (prefers.controls == 0) {
@@ -1078,7 +1251,6 @@ function draw() {
           startLevelUp();
         }
         if (player.hp <= 0) {
-
           player.alive = false;
           world.screenshake.set(8, 8, 1)
           explosions.push({ pos: player.pos.copy(), vel: player.vel.copy(), size: 70, tick: 0 });
@@ -1088,11 +1260,20 @@ function draw() {
           //https://stackoverflow.com/questions/16449295/how-to-sum-the-values-of-a-javascript-object
           if (Object.values(player.score).reduce((a, b) => a + b, 0) >= Object.values(JSON.parse((localStorage.getItem("highscore")))).reduce((a, b) => a + b, 0)) localStorage.setItem("highscore", JSON.stringify(player.score));
         }
+        if (player.shieldRegen <= 0) {
+          player.shieldRegen = player.shieldRegenTime;
+          player.shield++;
+          if (player.shield > player.shieldLvl + 1) {
+            player.shield = player.shieldLvl + 1;
+          }
+        } else {
+          player.shieldRegenTime -= clampTime / 1000;
+        }
         player.weapons.forEach(weapon => {
-          weapon.tick(weapon);
+          weapon?.tick(weapon);
         })
         projectiles.forEach((projectile, i) => {
-          weapons.find(x => x.id == projectile.type).projectileTick(projectile, i)
+          weapons.find(x => x.id == projectile.type)?.projectileTick(projectile, i)
         })
 
       }
@@ -1163,7 +1344,7 @@ function draw() {
             }
           }
           projectiles.forEach((projectile, projectileIndex) => {
-            weapons.find(x => x.id == projectile.type).asteroidTick(projectile, projectileIndex, e, i)
+            weapons.find(x => x.id == projectile.type)?.asteroidTick(projectile, projectileIndex, e, i)
           })
           if (e.followPlayer > 0) {
             dst.normalize();
@@ -1303,7 +1484,7 @@ function draw() {
       }
       pop();
       projectiles.forEach((projectile) => {
-        weapons.find(x => x.id == projectile.type).drawTick(projectile)
+        weapons.find(x => x.id == projectile.type)?.drawTick(projectile)
       });
     }
     if (player.alive) {
@@ -1507,7 +1688,7 @@ function startLevelUp(isFirstUpgrade) {
         playerWeapon.upgrades.forEach((upgrade, i) => {
           if (upgrade.times < upgrade.max) {
             for (let n = 0; n < upgrade.weight; n += 0.05) {
-              choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon.onUpgrade(weapon) }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade, rarity: upgrade.rarity })
+              choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon?.onUpgrade(weapon) }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade, rarity: upgrade.rarity })
             }
           }
         });
@@ -1520,7 +1701,7 @@ function startLevelUp(isFirstUpgrade) {
       if (choices.length > 0) {
         let r = floor(random() * choices.length);
         levelUpgrades.push(choices[r]);
-        choices = choices.filter(e => e.i != choices[r].i);
+        choices = choices.filter(e => e.name != choices[r].name);
       }
     }
   } else {
@@ -1750,8 +1931,7 @@ function drawHUD() {
 
 function drawPointerArrows() {
   if (prefers.showArrows) {
-    world.pickups.forEach((e, i) => {
-      let pos = p5.Vector.add(e.pos, e.closest);
+    let drawArrow = (pos, col, aSize) => {
       let dif = p5.Vector.sub(player.pos, pos);
       let render = false;
       let s = p5.Vector.sub(size, v(20, 20));
@@ -1775,11 +1955,17 @@ function drawPointerArrows() {
         push();
         translate(p5.Vector.mult(dif, -1));
         rotate(dif.heading());
-        fill(pickupData[e.type].col);
+        fill(col);
         noStroke();
-        triangle(10, -10, 10, 10, -15, 0);
+        triangle(aSize, -aSize, aSize, aSize, -aSize * 1.5, 0);
         pop();
       }
+    }
+    world.pickups.forEach((e) => {
+      drawArrow(p5.Vector.add(e.pos, e.closest), pickupData[e.type].col, 10);
+    });
+    asteroids.forEach((e) => {
+      if (e.boss) drawArrow(p5.Vector.add(e.pos, e.closest), "rgb(240,100,100)", 15);
     });
   }
 }
