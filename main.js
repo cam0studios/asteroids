@@ -1,4 +1,4 @@
-const version = "3.10.0";
+const version = "3.10.1";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
