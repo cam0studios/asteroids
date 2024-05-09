@@ -168,7 +168,7 @@ const weapons = [
         onGet: (weapon) => weapon.projectileSpeed += 4,
         weight: 1,
         desc: "Your bullets move faster",
-        max: 10,
+        max: 5,
         rarity: 0
       }, {
         name: "Damage",
@@ -460,7 +460,7 @@ const weapons = [
     name: "Missile",
     id: "missile",
     description: "Launches missiles at asteroids",
-    weight: 0.1,
+    weight: 100.1,
     rarity: 3,
     starter: false,
     onGet: () => {
@@ -475,7 +475,7 @@ const weapons = [
       weaponObject.lvl = 0;
       weaponObject.amount = 5;
       weaponObject.fireRate = 15;
-      weaponObject.area = 1;
+      weaponObject.area = 25;
       weaponObject.fireCooldown = 0;
       weaponObject.fired = -1;
       player.weapons.push(weaponObject)
@@ -522,7 +522,7 @@ const weapons = [
               let dst = p5.Vector.sub(p5.Vector.add(closest.pos, closest.closest), player.pos);
               dst.add(p5.Vector.mult(closest.vel, dst / weapon.projectileSpeed));
               dst.setMag(weapon.projectileSpeed);
-              projectiles.push({ type: "missile", pos: player.pos.copy(), vel: dst, life: weapon.duration, swerve: 0.5, swerveT: (random() - 0.5) * 1 * PI, swerveSpeed: 7, realVel: v(0, 0), dmg: weapon.power, area: weapon.area });
+              projectiles.push({ type: "missile", pos: player.pos.copy(), vel: dst, life: weapon.duration, swerve: 0.5, swerveT: (random() - 0.5) * 1 * PI, swerveSpeed: 7, realVel: v(0, 0), dmg: weapon.power, area: weapon.area, closest: v(0, 0) });
               let proj = projectiles[projectiles.length - 1];
               proj.pos.add(p5.Vector.mult(p5.Vector.rotate(proj.vel, PI / 2), (random() - 0.5) * 0.5));
             }
@@ -546,10 +546,20 @@ const weapons = [
         i--;
       }
       projectile.swerveT += projectile.swerveSpeed * clampTime / 1000;
+      let closestDst = world.size.mag();
+      for (let x = -world.size.x; x <= world.size.x; x += world.size.x) {
+        for (let y = -world.size.y; y <= world.size.y; y += world.size.y) {
+          let dst = p5.Vector.sub(p5.Vector.add(projectile.pos, v(x, y)), player.pos).mag();
+          if (dst < closestDst) {
+            closestDst = dst;
+            projectile.closest = v(x, y);
+          }
+        }
+      }
     },
     drawTick: (projectile) => {
       push();
-      translate(projectile.pos.x - player.pos.x, projectile.pos.y - player.pos.y);
+      translate(projectile.pos.x - player.pos.x + projectile.closest.x, projectile.pos.y - player.pos.y + projectile.closest.y);
       rotate(projectile.realVel.heading());
       fill(250);
       stroke(250);
@@ -560,15 +570,15 @@ const weapons = [
       pop();
     },
     asteroidTick: (projectile, projectileI, asteroid, asteroidI) => {
-      if (p5.Vector.sub(projectile.pos, asteroid.pos).mag() < asteroid.size / 2 + projectile.area) {
+      if (p5.Vector.sub(p5.Vector.add(projectile.pos, projectile.closest), p5.Vector.add(asteroid.pos, asteroid.closest)).mag() < asteroid.size / 2 + projectile.area) {
         projectiles.splice(projectileI, 1);
         projectileI--;
         asteroid.hp -= projectile.dmg;
-        explosions.push({ pos: projectile.pos, vel: v(0, 0), size: projectile.area, tick: 0 });
+        explosions.push({ pos: p5.Vector.add(projectile.pos, projectile.closest), vel: v(0, 0), size: projectile.area, tick: 0 });
         if (asteroid.hp <= 0) {
           asteroids.splice(asteroidI, 1);
           asteroidI--;
-          astSplit(asteroid, projectile.vel.heading());
+          astSplit(asteroid, projectile.realVel.heading());
         }
       }
     }
@@ -767,6 +777,7 @@ const pickupData = [
             gotten.push({ name: upgrades[choice.i].name, times: upgrades[choice.i].times });
           } else {
             choice.u.onGet(choice.w);
+            choice.w.onUpgrade(choice.w);
             choice.u.times++;
             gotten.push({ name: `${choice.w.name} - ${choice.u.name}`, times: choice.u.times });
           }
@@ -1931,23 +1942,23 @@ function drawHUD() {
 
 function drawPointerArrows() {
   if (prefers.showArrows) {
-    let drawArrow = (pos, col, aSize) => {
+    let drawArrow = (pos, col, aSize, rad) => {
       let dif = p5.Vector.sub(player.pos, pos);
       let render = false;
       let s = p5.Vector.sub(size, v(20, 20));
-      if (dif.x <= -s.x / 2) {
+      if (dif.x <= -s.x / 2 - rad) {
         render = true;
         dif.div(dif.x / (-s.x / 2));
       }
-      if (dif.y <= -s.y / 2) {
+      if (dif.y <= -s.y / 2 - rad) {
         render = true;
         dif.div(dif.y / (-s.y / 2));
       }
-      if (dif.x >= s.x / 2) {
+      if (dif.x >= s.x / 2 - rad) {
         render = true;
         dif.div(dif.x / (s.x / 2));
       }
-      if (dif.y >= s.y / 2) {
+      if (dif.y >= s.y / 2 - rad) {
         render = true;
         dif.div(dif.y / (s.y / 2));
       }
@@ -1962,10 +1973,10 @@ function drawPointerArrows() {
       }
     }
     world.pickups.forEach((e) => {
-      drawArrow(p5.Vector.add(e.pos, e.closest), pickupData[e.type].col, 10);
+      drawArrow(p5.Vector.add(e.pos, e.closest), pickupData[e.type].col, 10, 10);
     });
     asteroids.forEach((e) => {
-      if (e.boss) drawArrow(p5.Vector.add(e.pos, e.closest), "rgb(240,100,100)", 15);
+      if (e.boss) drawArrow(p5.Vector.add(e.pos, e.closest), "rgb(240,100,100)", 15, e.size / 2);
     });
   }
 }
