@@ -1138,8 +1138,7 @@ function setupVars() {
     shield: 0,
     shieldLvl: 0,
     weapons: [],
-    shieldRegen: 120,
-    shieldRegenTime: 120
+    shieldRegen: 120
   };
   for (let i = 0; i < 10; i += 0.3 / (i + 2)) {
     asteroids.push({ pos: v(i * world.size.mag() / 10 + 100, 0).rotate(random() * 2 * PI), vel: v(random() * 3, 0).rotate(random() * 2 * PI), size: random() * 20 + 20 });
@@ -1283,13 +1282,13 @@ function draw() {
           if (Object.values(player.score).reduce((a, b) => a + b, 0) >= Object.values(JSON.parse((localStorage.getItem("highscore")))).reduce((a, b) => a + b, 0)) localStorage.setItem("highscore", JSON.stringify(player.score));
         }
         if (player.shieldRegen <= 0) {
-          player.shieldRegen = player.shieldRegenTime;
+          player.shieldRegen = 120 - player.shieldLvl * 20;
           player.shield++;
           if (player.shield > player.shieldLvl + 1) {
             player.shield = player.shieldLvl + 1;
           }
         } else {
-          player.shieldRegenTime -= clampTime / 1000;
+          player.shieldRegen -= clampTime / 1000;
         }
         player.weapons.forEach(weapon => {
           weapon?.tick(weapon);
