@@ -1,4 +1,4 @@
-const version = "3.10.1";
+const version = "3.11.0";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -460,7 +460,7 @@ const weapons = [
     name: "Missile",
     id: "missile",
     description: "Launches missiles at asteroids",
-    weight: 100.1,
+    weight: 0.1,
     rarity: 3,
     starter: false,
     onGet: () => {
@@ -580,6 +580,17 @@ const weapons = [
           asteroidI--;
           astSplit(asteroid, projectile.realVel.heading());
         }
+        asteroids.forEach((e, i) => {
+          let dst = p5.Vector.sub(e.pos, projectile.pos);
+          if (dst.mag() < e.size / 2 + projectile.area) {
+            e.hp -= projectile.dmg;
+            if (e.hp <= 0) {
+              asteroids.splice(i, 1);
+              i--;
+              astSplit(e, projectile.realVel.heading());
+            }
+          }
+        });
       }
     }
   }
