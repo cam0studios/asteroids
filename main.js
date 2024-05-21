@@ -55,7 +55,8 @@ var asteroids,
     3: "rgb(95, 65, 116)",
     4: "rgb(131, 104, 22)",
     5: "rgb(150, 46, 46)"
-  }
+  },
+  jetFormation
 
 if (!localStorage.getItem("highscore")) {
   localStorage.setItem("highscore", 0);
@@ -593,7 +594,206 @@ const weapons = [
         });
       }
     }
-  }
+  }, {
+    name: "Jet",
+    id: "jet",
+    description: "A plane that flies around and shoots stuff",
+    weight: 0.1,
+    rarity: 3,
+    starter: false,
+    onGet: () => {
+      let weaponObject = {}
+      weaponObject = Object.assign(weapons.find(x => x.id == "jet"), weaponObject);
+
+      weaponObject.upgrades.forEach(upgrade => upgrade.times = 0)
+      weaponObject.power = 2;
+      weaponObject.projectileSpeed = 1;
+      weaponObject.lvl = 0;
+      weaponObject.amount = 1;
+      weaponObject.fireRate = 1;
+      weaponObject.area = 1;
+      weaponObject.hp = 5;
+      player.weapons.push(weaponObject)
+      jetFormation = {
+        pos: player.pos.copy(),
+        vel: v(300, 0),
+        dirVel: 0.5,
+        jets: [
+          [v(0, 0)],
+          [v(0, 50), v(0, -50)],
+          [v(0, 0), v(-100, -100), v(-100, 100)],
+          [v(0, 50), v(0, -50), v(-100, 150), v(-100, -150)],
+          [v(0, 0), v(-100, -100), v(-100, 100), v(-200, -200), v(-200, 200)],
+          [v(0, 50), v(0, -50), v(-100, 150), v(-100, -150), v(-200, 250), v(-200, -250)],
+          [v(0, 50), v(0, -50), v(-100, 150), v(-100, -150), v(-200, 250), v(-200, -250), v(-150, 0)]
+        ],
+        jetLastPos: [],
+        jetPos: [],
+        jetAvg: [],
+        closest: v(0, 0)
+      };
+      jetFormation.jets.forEach((e) => {
+        jetFormation.jetAvg.push(p5.Vector.div(e.reduce((a, b) => p5.Vector.add(a, b))), e.length);
+      });
+    },
+    upgrades: [
+      {
+        name: "Amount",
+        desc: "Another jet in formation",
+        onGet: (weapon) => { weapon.amount++ },
+        max: 6,
+        weight: 0.2
+      }, {
+        name: "Fire rate",
+        desc: "Jets shoot faster",
+        onGet: (weapon) => { weapon.fireRate *= 0.8 },
+        max: 5,
+        weight: 0.4
+      }, {
+        name: "HP",
+        desc: "Jets are tougher",
+        onGet: (weapon) => { weapon.hp += 2 },
+        max: 5,
+        weight: 0.4
+      }, {
+        name: "Damage",
+        desc: "Jets do more damage",
+        onGet: (weapon) => { weapon.power++ },
+        max: 5,
+        weight: 0.4
+      }
+    ],
+    onUpgrade: (weapon) => {
+      projectiles = projectiles.filter(e => e.type != "jet");
+      jetFormation.dirVel = 2 / (weapon.amount + 3);
+    },
+    tick: (weapon) => {
+      if (projectiles.filter(e => e.type == "jet").length < weapon.amount) {
+        let missing = [...Array(weapon.amount).keys()];
+        projectiles.filter(e => e.type == "jet").forEach((e) => {
+          missing.splice(missing.indexOf(e.id), 1);
+        });
+        for (let i = 0; i < missing.length; i++) {
+          projectiles.push({ type: "jet", pos: player.pos.copy(), time: 0, id: missing[i], inFormation: false, hp: weapon.hp, fireRate: weapon.fireRate, cooldown: 0, lastPos: new Array(10).fill(v(0, 0)), dmg: weapon.power, area: weapon.area });
+        }
+      }
+      jetFormation.pos.add(p5.Vector.mult(jetFormation.vel, clampTime / 1000));
+      jetFormation.vel.rotate(jetFormation.dirVel * clampTime / 1000);
+      let closestDst = worldSize * 2;
+      for (let x = -1; x < 2; x++) {
+        for (let y = -1; y < 2; y++) {
+          let vec = v(x, y);
+          vec.mult(world.size);
+          let dst = p5.Vector.sub(p5.Vector.add(jetFormation.pos, vec), player.pos);
+          if (dst < closestDst) {
+            closestDst = dst;
+            jetFormation.closest = vec;
+          }
+        }
+      }
+      let firstFrame = false;
+      if (jetFormation.jetPos.length == 0) firstFrame = true;
+      else jetFormation.jetLastPos = jetFormation.jetPos.map(e => e.copy());
+      jetFormation.jetPos = [];
+      jetFormation.jets[weapon.amount - 1].forEach((e) => {
+        jetFormation.jetPos.push(p5.Vector.add(p5.Vector.rotate(p5.Vector.sub(e, jetFormation.jetAvg[weapon.amount - 1]), jetFormation.vel.heading()), p5.Vector.add(jetFormation.pos, jetFormation.closest)));
+      });
+      if (firstFrame) jetFormation.jetLastPos = jetFormation.jetPos.map(e => e.copy());
+    },
+    projectileTick: (projectile, projectileI) => {
+      projectile.time += clampTime / 1000;
+      projectile.cooldown -= clampTime / 1000;
+      projectile.lastPos.unshift(projectile.pos.copy());
+      if (projectile.lastPos.length > 10) projectile.lastPos.pop();
+      let pos = jetFormation.jetPos[projectile.id];
+      let vel = p5.Vector.sub(pos, jetFormation.jetLastPos[projectile.id]);
+      let d = p5.Vector.sub(pos, projectile.pos);
+      if (d.mag() <= vel.mag() * 1.1) {
+        projectile.pos = pos.copy();
+        projectile.inFormation = true;
+        projectile.fast = false;
+      } else if (d.mag() < vel.mag() * 1.1 + 100) {
+        projectile.pos.add(p5.Vector.add(vel, p5.Vector.setMag(d, min(4 * clampTime / 1000, d.mag()))));
+        projectile.inFormation = false;
+        projectile.fast = false;
+      } else {
+        projectile.pos.add(p5.Vector.setMag(d, min((10 * clampTime / 1000 + vel.mag()), d.mag())));
+        projectile.inFormation = false;
+        projectile.fast = true;
+      }
+
+      if (projectile.cooldown <= 0) {
+        projectile.cooldown = projectile.fireRate;
+        projectiles.push({ type: "missile", pos: projectile.pos.copy(), vel: p5.Vector.setMag(jetFormation.vel, 500), swerve: 0.5, swerveT: random() * PI, swerveSpeed: 7, realVel: v(0, 0), dmg: projectile.dmg, area: projectile.area, closest: v(0, 0), life: 5 });
+      }
+      let closestDst = worldSize * 10;
+      for (let x = -1; x < 2; x++) {
+        for (let y = -1; y < 2; y++) {
+          let vec = v(x, y);
+          vec.mult(world.size);
+          let dst = p5.Vector.sub(p5.Vector.add(projectile.pos, vec), player.pos).mag();
+          if (dst < closestDst) {
+            closestDst = dst;
+            projectile.closest = vec;
+          }
+        }
+      }
+    },
+    drawTick: (projectile) => {
+      translate(-player.pos.x, -player.pos.y);
+      push();
+      if (projectile.fast) {
+        let p = jetFormation.jetPos[projectile.id];
+        noFill();
+        stroke("rgba(255,255,255,0.5)");
+        strokeWeight(5);
+        circle(p.x, p.y, 25);
+      }
+
+      translate(projectile.pos.x + projectile.closest.x, projectile.pos.y + projectile.closest.y);
+      let avg = projectile.lastPos.slice(0, 10).reduce((a, b) => p5.Vector.add(a, b));
+      avg.div(10);
+      let d = p5.Vector.sub(projectile.pos, avg);
+      d.normalize();
+      if (projectile.fast) {
+        stroke(220);
+        strokeWeight(20);
+        line(d.x * -50, d.y * -50, d.x * -100, d.y * -100);
+        stroke(255);
+        strokeWeight(10);
+        line(d.x * -50, d.y * -50, d.x * -100, d.y * -100);
+      }
+      push();
+      fill(255, 0.1);
+      stroke(255);
+      strokeWeight(5);
+      if (projectile.fast) {
+        rotate(d.heading());
+      } else {
+        rotate(jetFormation.vel.heading());
+      }
+      triangle(-15, -15, -15, 15, 25, 0);
+      pop();
+      pop();
+    },
+    asteroidTick: (projectile, projectileI, asteroid, asteroidI) => {
+      let dst = p5.Vector.sub(p5.Vector.add(projectile.pos, projectile.closest), p5.Vector.add(asteroid.pos, asteroid.closest));
+      if (dst.mag() < asteroid.size / 2 + 20) {
+        asteroid.hp--;
+        if (asteroid.hp <= 0) {
+          asteroids.splice(asteroidI, 1);
+          asteroidI--;
+          astSplit(asteroid, dst.heading());
+        }
+        projectile.hp--;
+        if (projectile.hp <= 0) {
+          projectiles.splice(projectileI, 1);
+          projectileI--;
+          explosions.push({ pos: projectile.pos, vel: v(0, 0), size: 100, tick: 0 });
+        }
+      }
+    }
+  },
   /*{
     name: "Template",
     id: "template",
@@ -788,7 +988,7 @@ const pickupData = [
             gotten.push({ name: upgrades[choice.i].name, times: upgrades[choice.i].times });
           } else {
             choice.u.onGet(choice.w);
-            choice.w.onUpgrade(choice.w);
+            choice.w?.onUpgrade(choice.w);
             choice.u.times++;
             gotten.push({ name: `${choice.w.name} - ${choice.u.name}`, times: choice.u.times });
           }
@@ -1215,7 +1415,7 @@ function draw() {
         });
       }
       player.pos.add(p5.Vector.mult(player.vel, clampTime * 0.03));
-      player.vel.mult(0.95);
+      player.vel.mult(Math.pow(0.15, clampTime / 1000));
       if (player.alive) {
         timer += clampTime / 1000;
 
@@ -1388,8 +1588,8 @@ function draw() {
 
 
     background(0);
-    stroke(150);
-    strokeWeight(1);
+    stroke(50);
+    strokeWeight(5);
     let s = 100;
     for (let x = (Math.round(s - player.pos.x) % s + s) % s; x <= size.x; x += s) {
       line(x, 0, x, size.y);
@@ -1505,7 +1705,9 @@ function draw() {
       }
       pop();
       projectiles.forEach((projectile) => {
-        weapons.find(x => x.id == projectile.type)?.drawTick(projectile)
+        push();
+        weapons.find(x => x.id == projectile.type)?.drawTick(projectile);
+        pop();
       });
     }
     if (player.alive) {
@@ -1532,7 +1734,7 @@ function draw() {
     textAlign(RIGHT);
     textFont("monospace");
     textStyle(NORMAL);
-    text(round(1000 / deltaTime), size.x - 10, 20);
+    text(round(1000 / clampTime), size.x - 10, 20);
 
 
     stroke(250);
@@ -2045,3 +2247,11 @@ document.addEventListener("keydown", (e) => {
     prefers.autoFire = !prefers.autoFire;
   }
 });
+
+function getTriangle(num) {
+  let decrease;
+  for (decrease = 1; num >= 0; decrease++) {
+    num -= decrease;
+  }
+  return decrease;
+}
