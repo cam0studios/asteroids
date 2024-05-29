@@ -1,3 +1,5 @@
+//const p5 = require("p5");
+
 const version = "3.11.0";
 const pageTime = new Date();
 
@@ -394,12 +396,12 @@ const weapons = [
       if (lineCircleCollision(pos, lastPos, p5.Vector.add(asteroid.pos, asteroid.closest), asteroid.size / 2 + projectile.rad + 5)) {
         asteroid.hp -= projectile.dmg;
         if (asteroid.hp <= 0) {
-          astSplit(asteroid, projectile.dir?.heading() || 0);
+          astSplit(asteroid, projectile.dir.heading?.() || 0);
           asteroids.splice(asteroidIndex, 1);
           asteroidIndex--;
         } else {
           let dir;
-          dir = projectile.dir?.copy();
+          dir = projectile.dir.copy?.();
           dir.setMag(5);
           asteroid.vel.add(dir);
           dir.mult(2);
@@ -517,7 +519,7 @@ const weapons = [
           }
           if (weapon.fireCooldown <= 0) {
             weapon.fireCooldown = 0.02;
-            let closest = asteroids.sort((a, b) => p5.Vector.sub(player.pos, p5.Vector.add(a.pos, a.closest)).mag() - p5.Vector.sub(player.pos, p5.Vector.add(b.pos, b.closest)).mag());
+            let closest = asteroids.toSorted((a, b) => p5.Vector.sub(player.pos, p5.Vector.add(a.pos, a.closest)).mag() - p5.Vector.sub(player.pos, p5.Vector.add(b.pos, b.closest)).mag());
             if (closest.length > 0) {
               closest = closest[0];
               let dst = p5.Vector.sub(p5.Vector.add(closest.pos, closest.closest), player.pos);
@@ -793,8 +795,101 @@ const weapons = [
         }
       }
     }
-  },
-  /*{
+  }, {
+    name: "Laser",
+    id: "laser",
+    description: "Creates a laser that can pierce asteroids",
+    weight: 0.1,
+    onGet: () => {
+      let weaponObject = {}
+      weaponObject = Object.assign(weapons.find(x => x.id == "laser"), weaponObject);
+
+      weaponObject.upgrades.forEach(upgrade => upgrade.times = 0);
+      weaponObject.power = 20;
+      weaponObject.duration = 1;
+      weaponObject.cooldown = 0;
+      weaponObject.lvl = 0;
+      weaponObject.amount = 1;
+      weaponObject.fireRate = 5;
+      weaponObject.area = 50;
+      player.weapons.push(weaponObject);
+    },
+    upgrades: [
+      {
+        name: "Damage Up",
+        desc: "Increases damage per second",
+        onGet: (weapon) => weapon.power += 8,
+        max: 5
+      },
+      {
+        name: "Size Up",
+        desc: "Increases beam size",
+        onGet: (weapon) => weapon.area += 10,
+        max: 5
+      },
+      {
+        name: "Duration up",
+        desc: "Increases time beam lasts",
+        onGet: (weapon) => weapon.duration += 0.5,
+        max: 5
+      }
+    ],
+    tick: (weapon) => {
+      if (weapon.cooldown <= 0) {
+        weapon.cooldown = weapon.fireRate;
+        if (asteroids.length > 0) {
+          let closest = asteroids.map(e => p5.Vector.sub(p5.Vector.add(e.pos, e.closest), player.pos)).toSorted((a, b) => a.mag() - b.mag())[0];
+          projectiles.push({ type: "laser", size: weapon.area, time: 0, life: weapon.duration, pos: player.pos.copy(), dir: closest.heading(), closest: v(0, 0), dmg: weapon.power });
+          let p = projectiles[projectiles.length - 1];
+          p.pos2 = p5.Vector.add(p.pos, v(worldSize / 2, 0).rotate(p.dir));
+          p.pos.add(v(p.size + 20, 0).rotate(p.dir));
+        }
+      } else {
+        weapon.cooldown -= clampTime / 1000;
+      }
+    },
+    projectileTick: (projectile, i) => {
+      projectile.life -= clampTime / 1000;
+      projectile.time += clampTime / 1000;
+      if (projectile.life <= 0) {
+        projectiles.splice(i, 1)
+      }
+      let closestDst = world.size.mag();
+      for (let x = -1; x < 2; x++) {
+        for (let y = -1; y < 2; y++) {
+          let vec = v(x, y);
+          vec.mult(world.size);
+          let dst = p5.Vector.sub(p5.Vector.add(projectile.pos, vec), player.pos);
+          if (dst < closestDst) {
+            projectile.closest = vec;
+            closestDst = dst;
+          }
+        }
+      }
+    },
+    drawTick: (projectile) => {
+      translate(p5.Vector.sub(projectile.closest, player.pos));
+      stroke("rgba(255,255,255,0.75)");
+      let s = projectile.size;
+      if (projectile.time < 0.15) s *= projectile.time / 0.15;
+      if (projectile.life < 0.5) s *= projectile.life / 0.5;
+      strokeWeight(s);
+      line(projectile.pos.x, projectile.pos.y, projectile.pos2.x, projectile.pos2.y);
+      stroke(255);
+      strokeWeight(s * 0.65);
+      line(projectile.pos.x, projectile.pos.y, projectile.pos2.x, projectile.pos2.y);
+    },
+    asteroidTick: (projectile, projectileI, asteroid, asteroidI) => {
+      if (lineCircleCollision(p5.Vector.add(projectile.pos, projectile.closest), p5.Vector.add(projectile.pos2, projectile.closest), p5.Vector.add(asteroid.pos, asteroid.closest), asteroid.size / 2 + projectile.size / 2)) {
+        asteroid.hp -= projectile.dmg * clampTime / 1000;
+        if (asteroid.hp <= 0) {
+          asteroids.splice(asteroidI, 1);
+          asteroidI--;
+          astSplit(asteroid, projectile.dir);
+        }
+      }
+    }
+  } /*{
     name: "Template",
     id: "template",
     description: "Template weapon",
@@ -848,65 +943,6 @@ const weapons = [
 
     }
   },*/
-  // {
-  //   name: "Laser",
-  //   id: "laser",
-  //   description: "Creates a laser that can pierce asteroids",
-  //   weight: 0.1,
-  //   onGet: () => {
-  //     let weaponObject = {}
-  //     weaponObject = Object.assign(weapons.find(x => x.id == "laser"), weaponObject);
-
-  //     weaponObject.upgrades.forEach(upgrade => upgrade.times = 0)
-  //     weaponObject.power = 0.5;
-  //     weaponObject.duration = 5;
-  //     weaponObject.projectileSpeed = 0;
-  //     weaponObject.cooldown = 0;
-  //     weaponObject.lvl = 0;
-  //     weaponObject.amount = 1;
-  //     weaponObject.fireRate = 20;
-  //     weaponObject.area = 1;
-  //     player.weapons.push(weaponObject)
-  //   },
-  //   upgrades: [
-  //     {
-  //       name: "Damage Up",
-  //       desc: "Increases damage per second",
-  //       onGet: (weapon) => weapon.power += 0.5,
-  //       max: 4
-  //     },
-  //     {
-  //       name: "Size Up",
-  //       desc: "Increases beam size",
-  //       onGet: (weapon) => weapon.area += 1,
-  //       max: 2
-  //     },
-  //     {
-  //       name: "Duration up",
-  //       desc: "Increases time beam lasts",
-  //       onGet: (weapon) => weapon.duration += 2.5,
-  //       max: 4
-  //     }
-  //   ],
-  //   tick: (weapon) => {
-  //     if (weapon.cooldown <= 0) {
-  //       weapon.cooldown = weapon.fireRate;
-  //       projectiles.push({ type: "laser", size: weapon.area, life: weapon.duration })
-  //     } else {
-  //       weapon.cooldown -= clampTime / 1000
-  //     }
-  //   },
-  //   projectileTick: (projectile, i) => {
-  //     projectile.life -= clampTime / 1000;
-  //     if (projectile.life <= 0) {
-  //       projectiles.splice(i, 1)
-  //     }
-  //   },
-  //   drawTick: (projectile) => {
-
-  //   },
-  //   asteroidTick: () => { }
-  // }
 ]
 
 const pickupData = [
@@ -988,7 +1024,7 @@ const pickupData = [
             gotten.push({ name: upgrades[choice.i].name, times: upgrades[choice.i].times });
           } else {
             choice.u.onGet(choice.w);
-            choice.w?.onUpgrade(choice.w);
+            choice.w.onUpgrade?.(choice.w);
             choice.u.times++;
             gotten.push({ name: `${choice.w.name} - ${choice.u.name}`, times: choice.u.times });
           }
@@ -1025,15 +1061,13 @@ const pickupData = [
       function split(c) {
         if (c > 0) {
           asteroids.forEach((a, i) => {
-            if (p5.Vector.sub(a.pos, e.pos).mag() <= 1000) {
-              a.hp -= 10;
-              if (a.hp <= 0) {
-                setTimeout(() => {
-                  astSplit(a, p5.Vector.sub(a.pos, e.pos).heading());
-                }, 50);
-                asteroids.splice(i, 1);
-                i--;
-              }
+            a.hp -= 10;
+            if (a.hp <= 0) {
+              setTimeout(() => {
+                astSplit(a, p5.Vector.sub(a.pos, e.pos).heading());
+              }, 50);
+              asteroids.splice(i, 1);
+              i--;
             }
           });
           setTimeout(() => split(c - 1), 100);
@@ -1357,11 +1391,13 @@ function setupVars() {
   });
 
   // testing, all pickups
-  // for (let j = 0; 5 > j++;) {
-  //   for (let i = 0; i < pickupData.length; i++) {
-  //     world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 530, -1000 + j * 50), type: 3, amount: 10 })
-  //   }
-  // }
+  if (!location.href.includes("cam0studios") && false) {
+    for (let j = 0; 5 > j++;) {
+      for (let i = 0; i < pickupData.length; i++) {
+        world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 530, -1000 + j * 50), type: i, amount: 10 })
+      }
+    }
+  }
 }
 
 function draw() {
@@ -1375,7 +1411,7 @@ function draw() {
           bossFight = false;
         }
       } else {
-        if (tick < 15) asteroidSpawnTimer = 0;
+        //if (tick < 15) asteroidSpawnTimer = 0;
         if (asteroidSpawnTimer <= 0 && player.alive) {
           asteroidSpawnTimer = asteroidSpawnRate;
           asteroidSpawnRate *= 0.925;
@@ -1491,10 +1527,10 @@ function draw() {
           player.shieldRegen -= clampTime / 1000;
         }
         player.weapons.forEach(weapon => {
-          weapon?.tick(weapon);
+          weapon.tick?.(weapon);
         })
         projectiles.forEach((projectile, i) => {
-          weapons.find(x => x.id == projectile.type)?.projectileTick(projectile, i)
+          weapons.find(x => x.id == projectile.type).projectileTick?.(projectile, i)
         })
 
       }
@@ -1565,7 +1601,7 @@ function draw() {
             }
           }
           projectiles.forEach((projectile, projectileIndex) => {
-            weapons.find(x => x.id == projectile.type)?.asteroidTick(projectile, projectileIndex, e, i)
+            weapons.find(x => x.id == projectile.type).asteroidTick?.(projectile, projectileIndex, e, i)
           })
           if (e.followPlayer > 0) {
             dst.normalize();
@@ -1649,7 +1685,7 @@ function draw() {
             pickup.closest = v(xOff, yOff);
           }
         });
-        asteroids.sort((a, b) => a.size - b.size).forEach((a) => {
+        asteroids.toSorted((a, b) => a.size - b.size).forEach((a) => {
           let p = p5.Vector.sub(p5.Vector.add(a.pos, v(xOff, yOff)), player.pos);
           if (p.x > -size.x / 2 - a.size / 2 && p.x < size.x / 2 + a.size / 2 && p.y > -size.y / 2 - a.size / 2 && p.y < size.y / 2 + a.size / 2) {
             push();
@@ -1706,7 +1742,7 @@ function draw() {
       pop();
       projectiles.forEach((projectile) => {
         push();
-        weapons.find(x => x.id == projectile.type)?.drawTick(projectile);
+        weapons.find(x => x.id == projectile.type).drawTick?.(projectile);
         pop();
       });
     }
@@ -1806,7 +1842,7 @@ function draw() {
     fill(0);
     stroke(250);
     strokeWeight(5);
-    asteroids.sort((a, b) => a.size - b.size).forEach((e) => {
+    asteroids.toSorted((a, b) => a.size - b.size).forEach((e) => {
       fill("rgba(0,0,0,0.5)");
       ellipse(e.pos.x, e.pos.y, e.size, e.size);
       e.pos.add(p5.Vector.mult(e.vel, clampTime * 0.03));
@@ -1911,7 +1947,7 @@ function startLevelUp(isFirstUpgrade) {
         playerWeapon.upgrades.forEach((upgrade, i) => {
           if (upgrade.times < upgrade.max) {
             for (let n = 0; n < upgrade.weight; n += 0.05) {
-              choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon?.onUpgrade(weapon) }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade, rarity: upgrade.rarity })
+              choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon.onUpgrade?.(weapon) }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade, rarity: upgrade.rarity })
             }
           }
         });

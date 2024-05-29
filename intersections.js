@@ -13,5 +13,5 @@ window.lineCircleCollision = function (l1, l2, c, r) {
     if (p5.Vector.sub(l1, c).mag() < r || p5.Vector.sub(l2, c).mag() < r) return true;
     let closest = lineClosestPoint(l1, l2, c);
     if (!linePointCollision(l1, l2, closest)) return false;
-    return p5.Vector.sub(closest, c) < r;
+    return p5.Vector.sub(closest, c).mag() < r;
 }
