@@ -1411,7 +1411,7 @@ function draw() {
           bossFight = false;
         }
       } else {
-        //if (tick < 15) asteroidSpawnTimer = 0;
+        if (tick < 15) asteroidSpawnTimer = 0;
         if (asteroidSpawnTimer <= 0 && player.alive) {
           asteroidSpawnTimer = asteroidSpawnRate;
           asteroidSpawnRate *= 0.925;
