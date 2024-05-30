@@ -1,6 +1,6 @@
 //const p5 = require("p5");
 
-const version = "3.12.1";
+const version = "3.13.0";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -121,11 +121,10 @@ function changeUsername() {
 }
 
 const upgrades = [
-  { name: "Speed", f: () => player.speed += 0.2, weight: 1, description: "Your ship moves faster", max: 5, rarity: 0 },
-  { name: "Health", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, description: "+1 Max Heath, Heal 2 Hearts", max: 5, rarity: 0 },
-  { name: "Shield Upgrade", f: () => { player.shieldLvl++; player.shield++; player.shieldRegenTime -= 20 }, weight: 0.2, description: "+1 Shield Limit", max: 3, rarity: 3 },
-  // { name: "Guardian", f: () => { player.weapons.guardianLvl++ }, weight: 0.3, description: "Adds a spinning blade", max: 5 },
-  // { name: "Projectile Size", f: () => player.projectileSize += 3, weight: 0.9, description: "Your bullets are larger", max: 5}
+  { name: "Speed", description: "Your ship moves faster", f: () => player.speed += 0.2, weight: 1, max: 5, rarity: 0 },
+  { name: "Health", description: "+1 Max Heath, Heal 2 Hearts", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, max: 5, rarity: 0 },
+  { name: "Shield Upgrade", description: "+1 Shield Limit", f: () => { player.shieldLvl++; player.shield++}, weight: 0.2, max: 3, rarity: 3 },
+  { name: "Wisdom", description: "XP is worth 25% more", f: () => player.wisdom += 0.25, weight: 0.3, max: 4}
 ];
 const weapons = [
   {
@@ -599,7 +598,7 @@ const weapons = [
   }, {
     name: "Jet",
     id: "jet",
-    description: "A plane that flies around and shoots stuff",
+    description: "A plane that flies around and shoots asteroids",
     weight: 0.1,
     rarity: 3,
     starter: false,
@@ -992,7 +991,7 @@ const pickupData = [
   {
     col: "rgb(230, 200, 50)",
     weight: 0.3,
-    collect: () => { player.score.pickups += 1000; player.xp += Math.max(75, Math.floor(player.lvlUp / 10)) },
+    collect: () => { player.score.pickups += 1000; player.xp += Math.max(75, Math.floor(player.lvlUp / 10)) * player.wisdom },
     draw: () => {
       fill("rgb(230, 200, 50)");
       stroke("rgb(200, 180, 40)");
@@ -1029,7 +1028,7 @@ const pickupData = [
             gotten.push({ name: `${choice.w.name} - ${choice.u.name}`, times: choice.u.times });
           }
         } else {
-          gotten.push({ name: "XP", times: 2000 });
+          gotten.push({ name: "SCORE", times: 2000 });
           player.score.other += 2000;
         }
       }
@@ -1371,6 +1370,7 @@ function setupVars() {
     speed: 0.4,
     shield: 0,
     shieldLvl: 0,
+    wisdom: 1,
     weapons: [],
     shieldRegen: 120
   };
@@ -1392,7 +1392,7 @@ function setupVars() {
 
   // testing, all pickups
   if (!location.href.includes("cam0studios") && false) {
-    for (let j = 0; 5 > j++;) {
+    for (let j = 0; 20 > j++;) {
       for (let i = 0; i < pickupData.length; i++) {
         world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 530, -1000 + j * 50), type: i, amount: 10 })
       }
@@ -1517,7 +1517,7 @@ function draw() {
           //https://stackoverflow.com/questions/16449295/how-to-sum-the-values-of-a-javascript-object
           if (Object.values(player.score).reduce((a, b) => a + b, 0) >= Object.values(JSON.parse((localStorage.getItem("highscore")))).reduce((a, b) => a + b, 0)) localStorage.setItem("highscore", JSON.stringify(player.score));
         }
-        if (player.shieldRegen <= 0) {
+        if (player.shieldRegen <= 0 && player.shieldLvl > 0) {
           player.shieldRegen = 120 - player.shieldLvl * 20;
           player.shield++;
           if (player.shield > player.shieldLvl + 1) {
@@ -1898,7 +1898,7 @@ function pauseGame() {
     upgradeElement.innerHTML = "<b>Player:</b><br>" + upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>` : "").join("")
 
     player.weapons.forEach(weapon => {
-      upgradeElement.innerHTML += `<b>${weapon.name}</b><br> + ${weapon.upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>` : "").join("")}`
+      upgradeElement.innerHTML += `<b>${weapon.name}</b><br> ${weapon.upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>` : "").join("")}`
     })
     upgradeElement.innerHTML += `${version} (${pageTime.toLocaleDateString().replaceAll("/", ".")}.${pageTime.getHours()})`
 
@@ -1964,7 +1964,7 @@ function startLevelUp(isFirstUpgrade) {
       }
     }
   } else {
-    levelUpgrades.push({ name: "XP", f: () => { player.score.other += 2000 }, description: "Adds 2000 xp", i: -1, type: "normal" });
+    levelUpgrades.push({ name: "Score", f: () => { player.score.other += 2000 }, description: "Adds 2000 score", i: -1, type: "normal" });
     levelUpgrades.push({ name: "Health", f: () => { player.hp += 1 }, description: "Restores 1 additional health", i: -1, type: "normal" });
   }
   if (isFirstUpgrade === true) {
@@ -2238,7 +2238,7 @@ function astSplit(a, dir) {
   explosions.push({ pos: a.pos.copy(), vel: a.vel.copy(), tick: 0, size: a.size });
   world.screenshake.set(a.size * screenshakeModifier, a.size * screenshakeModifier, 0.1)
   player.score.kills += a.size > 35 ? 150 : (a.size > 25 ? 100 : 75);
-  player.xp += a.size > 35 ? 2 : 1;
+  player.xp += (a.size > 35 ? 2 : 1) * player.wisdom;
   if (a.boss && a.original) {
     world.pickups.push({ type: 3, pos: a.pos, amount: a.chestItems });
   }
