@@ -1317,6 +1317,7 @@ function setupVars() {
   });
   setUser({ relative: true }, { runs: 1 });
   tick = 0;
+  projectiles = [];
   pause = false;
   bossFight = false;
   maxFight = -1;
