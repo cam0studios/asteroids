@@ -71,14 +71,10 @@ dialog {
   left: 0;
   bottom: 0;
   color: white;
-}
 
-#upgrades {
-  display: block;
-  position: fixed;
-  left: 0;
-  bottom: 0;
-  color: white;
+  & > p {
+    margin: 0px;
+  }
 }
 
 .red {

@@ -123,8 +123,8 @@ function changeUsername() {
 const upgrades = [
   { name: "Speed", description: "Your ship moves faster", f: () => player.speed += 0.2, weight: 1, max: 5, rarity: 0 },
   { name: "Health", description: "+1 Max Heath, Heal 2 Hearts", f: () => { player.maxHp++; player.hp += 2; }, weight: 0.9, max: 5, rarity: 0 },
-  { name: "Shield Upgrade", description: "+1 Shield Limit", f: () => { player.shieldLvl++; player.shield++}, weight: 0.2, max: 3, rarity: 3 },
-  { name: "Wisdom", description: "XP is worth 25% more", f: () => player.wisdom += 0.25, weight: 0.3, max: 4}
+  { name: "Shield Upgrade", description: "+1 Shield Limit", f: () => { player.shieldLvl++; player.shield++ }, weight: 0.2, max: 3, rarity: 3 },
+  { name: "Wisdom", description: "XP is worth 25% more", f: () => player.wisdom += 0.25, weight: 0.3, max: 4 }
 ];
 const weapons = [
   {
@@ -1392,7 +1392,7 @@ function setupVars() {
   });
 
   // testing, all pickups
-  if (!location.href.includes("cam0studios") && false) {
+  if (!location.href.includes("cam0studios") && true) {
     for (let j = 0; 20 > j++;) {
       for (let i = 0; i < pickupData.length; i++) {
         world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 530, -1000 + j * 50), type: i, amount: 10 })
@@ -1896,7 +1896,16 @@ function pauseGame() {
     //drawing upgrades
     const upgradeElement = document.querySelector("#upgrades");
 
-    upgradeElement.innerHTML = "<b>Player:</b><br>" + upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>` : "").join("")
+    upgradeElement.innerHTML = "<b>Player:</b><br>" + upgrades.map(upgrade => {
+      let upgradeColor = "white";
+
+      if (upgrade.times == upgrade.max) upgradeColor = "gold"
+      if (upgrade.times > upgrade.max) upgradeColor = "red"
+
+      if (upgrade.times > 0) {
+        return `<p style="color: ${upgradeColor};">${upgrade.name}: ${upgrade.times}/${upgrade.max}</p>`
+      } else return ""
+    }).join("")
 
     player.weapons.forEach(weapon => {
       upgradeElement.innerHTML += `<b>${weapon.name}</b><br> ${weapon.upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>` : "").join("")}`
@@ -1933,14 +1942,16 @@ function startLevelUp(isFirstUpgrade) {
   upgrades.forEach((e, i) => {
     if (e.times < e.max) {
       for (let n = 0; n < e.weight; n += 0.05) {
-        choices.push({ name: e.name, f: e.f, description: e.description, i: i, type: "normal" });
+        choices.push({ name: e.name, f: e.f, description: e.description, i: i, type: "normal", rarity: rarityData[upgrades[i].rarity] });
       }
+    } else if (Math.floor(Math.random() * 100) == 69 /*nice ;)*/) {
+      choices.push({ name: "OVERCLOCK - " + e.name, f: e.f, description: e.description, i: i, rarity: rarityData["5"], type: "normal" })
     }
   });
   weapons.forEach((weapon, i) => {
     if (!player.weapons.find(x => x.id == weapon.id)) {
       for (let n = 0; n < weapon.weight; n += 0.05) {
-        choices.push({ name: weapon.name, f: weapon.onGet, description: weapon.description, i: -1, type: "weapon" })
+        choices.push({ name: weapon.name, f: weapon.onGet, description: weapon.description, i: -1, type: "weapon", rarity: rarityData["-1"] })
       }
     } else {
       const playerWeapons = player.weapons.filter(x => x.id == weapon.id);
@@ -1950,6 +1961,8 @@ function startLevelUp(isFirstUpgrade) {
             for (let n = 0; n < upgrade.weight; n += 0.05) {
               choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon.onUpgrade?.(weapon) }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade, rarity: upgrade.rarity })
             }
+          } else if (Math.floor(Math.random() * 100) == 96) {
+            choices.push({ name: `OVERCLOCK - ${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon.onUpgrade?.(weapon)}, description: upgrade.desc, type: "weaponUpgrade", self: upgrade, rarity:5 })
           }
         });
       });
@@ -1977,7 +1990,7 @@ function startLevelUp(isFirstUpgrade) {
 
   document.getElementById("choices").innerHTML = levelUpgrades.map((upgrade, i) => {
     if (upgrade.type == "normal") {
-      return `<button id="levelUp${i}" style="background-color:${upgrade.i == -1 ? rarityData["-1"] : rarityData[upgrades[upgrade.i].rarity]};"><h2>${upgrade.name}</h2><p>${upgrade.description}</p>${upgrade.i > -1 ? `<p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p>` : ""}</button>`
+      return `<button id="levelUp${i}" style="background-color:${upgrade.rarity};"><h2>${upgrade.name}</h2><p>${upgrade.description}</p>${upgrade.i > -1 ? `<p>${upgrades[upgrade.i].times}/${upgrades[upgrade.i].max}</p>` : ""}</button>`
     } else if (upgrade.type == "weapon") {
       return `<button id="levelUp${i}" style="background-color:${rarityData[3]};"><h2>${upgrade.name}</h2><p>${upgrade.description}</p></button>`
     } else if (upgrade.type == "weaponUpgrade") {
