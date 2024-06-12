@@ -35,19 +35,21 @@ dialog {
   }
 
   &>button,
-  &>*>button {
+  &>*>button,
+  &>*>*>button {
     padding: 5px;
     margin: 5px;
     border-radius: 5px;
     background-color: rgb(70, 70, 70);
     color: white;
     font-family: monospace;
+
+    &:hover {
+      filter: brightness(140%);
+    }
   }
 
-  &>button:hover,
-  &>*>button:hover {
-    filter: brightness(140%);
-  }
+
 
   &>h2 {
     margin: 0px;
@@ -72,7 +74,7 @@ dialog {
   bottom: 0;
   color: white;
 
-  & > p {
+  &>p {
     margin: 0px;
   }
 }
@@ -157,6 +159,6 @@ dialog::backdrop {
   width: 30%;
 }
 
-body > div.vex.vex-theme-wireframe > div > form > div.vex-dialog-buttons > button.vex-dialog-button-secondary.vex-dialog-button.vex-last {
+body>div.vex.vex-theme-wireframe>div>form>div.vex-dialog-buttons>button.vex-dialog-button-secondary.vex-dialog-button.vex-last {
   display: none;
 }

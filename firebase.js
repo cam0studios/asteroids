@@ -29,15 +29,12 @@ function gtag() { dataLayer.push(arguments); }
 gtag("js", new Date());
 
 gtag("config", TAG_ID);
-if (!localStorage.getItem("userId")) {
-  localStorage.setItem("userId", Date.now().toString() + Math.round(Math.random() * 10000));
-}
 
-gtag("config", TAG_ID, { "user_id": localStorage.getItem("userId") });
+gtag("config", TAG_ID, { "user_id": localStorage.getItem("user") });
 
 //firebase online leaderboards
 window.submitScore = async function (username, time, score, version) {
-  if (location.href.includes('cam0studios')) {
+  if (location.href.includes('cam0studios')) { //if not on testing
     let fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
     if (fullPlayerScore > 10000 && fullPlayerScore < 100000000) {
       addDoc(collection(db, "highscores2"), {
@@ -47,8 +44,7 @@ window.submitScore = async function (username, time, score, version) {
         total: Object.values(player.score).reduce((a, b) => a + b, 0),
         timestamp: serverTimestamp(),
         version: version,
-        stats: player.stats,
-        userId: localStorage.getItem("userId")
+        stats: player.stats
       })
     }
   }
@@ -65,43 +61,120 @@ window.getScores = async function (startAtObject) {
   return querySnapshot
 }
 
-window.getUser = async function (id = localStorage.getItem("userId")) {
-  let docRef = doc(db, "users", id);
-  let snap = await getDoc(docRef);
-  if (snap.exists()) {
-    return snap.data();
-  } else {
-    setUser({ id: id, relative: false });
+//firebase user stuff
+window.userSignIn = function () {
+  async function waitForVex(props) {
+    return new Promise((res, rej) => {
+      if ("callback" in props) props.callback = () => { props.callback(...arguments); res(...arguments) };
+      else props.callback = res;
+      vex.dialog.prompt(props);
+      if (props.password) setTimeout(() => { document.getElementsByClassName("vex-dialog-prompt-input")[0].setAttribute("type", "password") }, 500);
+    });
   }
+
+  async function chooseUsername(message) {
+    let username = await waitForVex({
+      message: message,
+      placeholder: "Spaceman"
+    });
+
+    if (username == "" || username.length > 20) return createUsername("Choose a valid username (less than 20 digits)");
+    if ((await getDoc(doc(db, "users", username))).exists()) return signIn(username, "Password");
+    else return createPassword(username);
+  }
+  async function createPassword(username) {
+    let password = await waitForVex({
+      message: "Create a password",
+      password: true
+    });
+
+    let passwordHash = sha1(password);
+    await setDoc(doc(db, "users", username), { password: passwordHash, bulletsFired: 0, bulletsHit: 0, chests: 0, kills: 0, pickups: 0, timePlayed: 0, upgrades: 0 });
+
+    return { username, password: passwordHash };
+  }
+  async function signIn(username, message) {
+    let password = await waitForVex({
+      message: message,
+      password: true
+    });
+
+    let passwordHash = sha1(password);
+    if ((await getDoc(doc(db, "users", username))).data().password == passwordHash) {
+      console.log("success");
+      return { username, password: passwordHash };
+    } else {
+      return signIn(username, "Incorrect password");
+    }
+  }
+
+  return new Promise((res, rej) => {
+    chooseUsername("Choose a username").then(e => {
+      localStorage.setItem("user", e.username);
+      localStorage.setItem("signedIn", "true");
+      pause = false;
+      if (!started) setupVars();
+      res();
+    });
+  });
 }
+
+window.userSignOut = function () {
+  localStorage.setItem("user", "");
+  localStorage.setItem("signedIn", "");
+}
+
 window.setUser = async function (props, data) {
   let relative = Object.hasOwn(props, "relative") ? props.relative : true;
-  let id = Object.hasOwn(props, "id") ? props.id : localStorage.getItem("userId");
+  let username = Object.hasOwn(props, "username") ? props.username : localStorage.getItem("user");
+  console.log(username);
+
   if (typeof data != "object") {
     data = {
-      username: "",
-      bulletsHit: 0,
+      /*bulletsHit: 0,
       bulletsFired: 0,
       chests: 0,
       kills: 0,
       pickups: 0,
       runs: 0,
-      timePlayed: 0,
-      username: localStorage.getItem("username")
+      timePlayed: 0*/
     }
   } else {
-    let oldData = await getUser(id);
+    let oldData = await getUser(username);
+
     if (relative) {
       Object.keys(data).forEach((e) => {
         if (!isNaN(parseFloat(oldData?.[e]))) data[e] += oldData[e];
       });
     }
+
     Object.keys(oldData).forEach((e) => {
       if (!Object.hasOwn(data, e)) data[e] = oldData[e];
     });
   }
-  let docRef = doc(db, "users", id);
+
+  let docRef = doc(db, "users", username);
   setDoc(docRef, data);
+  return data;
+}
+
+window.getUser = async function (username = localStorage.getItem("user")) {
+  let snap = await getDoc(doc(db, "users", username));
+  if (snap.exists()) {
+    return snap.data();
+  } else {
+    return setUser({ username, relative: false });
+  }
+}
+
+
+if (localStorage.getItem("userId")) {
+  console.log("old user");
+  localStorage.clear();
+}
+if (!localStorage.getItem("user")) {
+  console.log("no user");
+  localStorage.setItem("signedIn", "");
 }
 
 //analytics

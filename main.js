@@ -1,6 +1,6 @@
 //const p5 = require("p5");
 
-const version = "3.13.0";
+const version = "4.0.0";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
@@ -41,7 +41,7 @@ var asteroids,
       }
     }
   },
-  username = localStorage.getItem("username"),
+  username = localStorage.getItem("user"),
   maxFight,
   tick,
   bossFight,
@@ -71,53 +71,6 @@ if (typeof JSON.parse(localStorage.getItem("highscore")) != "object") {
     pickups: 0,
     other: highscoreNumber
   }))
-}
-
-function isUsernameValid(username) {
-  return username.trim().length <= 20 && username.trim().length !== 0
-}
-
-function setUsername(wasInvalid) {
-  return new Promise((res, rej) => {
-    vex.dialog.prompt({
-      message: wasInvalid ? "Your username must be between 1 and 20 characters long, please pick a new one." : "You'll need a username to be added to the leaderboard.",
-      placeholder: 'Spaceman',
-      callback: function (value) {
-        if (value === undefined) value = ""
-        if (isUsernameValid(value)) {
-          value = value.trim()
-          username = value
-          localStorage.setItem("username", value)
-          setUser({}, { username })
-          res(username)
-        } else {
-          rej(value)
-        }
-      }
-    })
-  })
-}
-
-function changeUsername() {
-  document.getElementById("pauseMenu").close()
-  pause = true
-  vex.dialog.prompt({
-    message: 'Enter a new username',
-    placeholder: localStorage.getItem("username") || 'Spaceman',
-    callback: function (value) {
-      if (!value) value = ""
-      if (isUsernameValid(value)) {
-        value = value.trim()
-        username = value
-        localStorage.setItem("username", value)
-        setUser({}, { username })
-        pause = false
-      } else {
-        alert("Your username is invalid. Usernames must be 20 characters or less.")
-        pause = false
-      }
-    }
-  })
 }
 
 const upgrades = [
@@ -252,6 +205,8 @@ const weapons = [
       if (lineCircleCollision(projectile.pos, projectile.lastPos, p5.Vector.sub(p5.Vector.add(asteroid.pos, asteroid.closest), projectile.closest), asteroid.size / 2 + 10)) {
         projectiles.splice(projectileI, 1);
         projectileI--;
+        player.stats.bulletsHit++;
+        player.changedStats.bulletsFired++;
         asteroid.hp -= projectile.dmg;
         if (asteroid.hp <= 0) {
           asteroids.splice(asteroidI, 1);
@@ -643,7 +598,8 @@ const weapons = [
         desc: "Another jet in formation",
         onGet: (weapon) => { weapon.amount++ },
         max: 6,
-        weight: 0.2
+        weight: 0.2,
+        overclock: false
       }, {
         name: "Fire rate",
         desc: "Jets shoot faster",
@@ -1063,7 +1019,7 @@ const pickupData = [
             a.hp -= 10;
             if (a.hp <= 0) {
               setTimeout(() => {
-                astSplit(a, p5.Vector.sub(a.pos, e.pos).heading());
+                astSplit(a, p5.Vector.sub(p5.Vector.add(a.pos, a.closest), e.pos).heading());
               }, 50);
               asteroids.splice(i, 1);
               i--;
@@ -1304,18 +1260,18 @@ function setup() {
   }
   setupVars();
   setInterval(() => {
-    player.changedStats.username = username;
-    setUser({ relative: true }, JSON.parse(JSON.stringify(player.changedStats)));
-    Object.keys(player.changedStats).forEach((k) => {
-      player.changedStats[k] = 0;
-    });
-  }, 10000);
+    if (started && !pause && !levelUp) {
+      if (localStorage.getItem("signedIn")) setUser({ relative: true }, JSON.parse(JSON.stringify(player.changedStats)));
+      Object.keys(player.changedStats).forEach((k) => {
+        player.changedStats[k] = 0;
+      });
+    }
+  }, 30000);
 }
 function setupVars() {
   upgrades.forEach((e) => {
     e.times = 0;
   });
-  setUser({ relative: true }, { runs: 1 });
   tick = 0;
   projectiles = [];
   pause = false;
@@ -1378,13 +1334,14 @@ function setupVars() {
   for (let i = 0; i < 10; i += 0.3 / (i + 2)) {
     asteroids.push({ pos: v(i * world.size.mag() / 10 + 100, 0).rotate(random() * 2 * PI), vel: v(random() * 3, 0).rotate(random() * 2 * PI), size: random() * 20 + 20 });
   }
-  document.getElementById("startMenu").showModal();
+  /*if (localStorage.getItem("user")) */document.getElementById("startMenu").showModal();
   document.getElementById("startButton").addEventListener("click", () => {
     started = true;
     document.getElementById("startMenu").close();
     asteroids = [];
     levelUp = true;
     startLevelUp(true);
+    if (localStorage.getItem("signedIn")) setUser({ relative: true }, { runs: 1 });
   });
 
   weapons.forEach((e) => {
@@ -1393,7 +1350,7 @@ function setupVars() {
 
   // testing, all pickups
   if (!location.href.includes("cam0studios") && true) {
-    for (let j = 0; 20 > j++;) {
+    for (let j = 0; j < 5; j++) {
       for (let i = 0; i < pickupData.length; i++) {
         world.pickups.push({ pos: v(i * 100 - pickupData.length * 50 + 530, -1000 + j * 50), type: i, amount: 10 })
       }
@@ -1872,6 +1829,8 @@ resolution.addEventListener("input", updateCanvasSize)
 
 function drawPauseMenu() {
   document.getElementById("control").innerHTML = ["AD Turning", "Mouse + WASD", "WASD + Arrow Turning"][prefers.controls];
+  document.getElementById("signInBtn").innerHTML = localStorage.getItem("signedIn") ? "Sign out" : "Sign in";
+  document.getElementById("signInBtn").onclick = localStorage.getItem("signedIn") ? "userSignOut()" : "userSignIn()";
 }
 
 function getCanPause() {
@@ -1954,7 +1913,7 @@ function startLevelUp(isFirstUpgrade) {
       for (let n = 0; n < e.weight; n += 0.05) {
         choices.push({ name: e.name, f: e.f, description: e.description, i: i, type: "normal", rarity: rarityData[upgrades[i].rarity] });
       }
-    } else if (Math.floor(Math.random() * 100) == 69 /*nice ;)*/) {
+    } else if (Math.floor(Math.random() * 100) == 69 /*nice ;)*/ && (!("overclock" in e) || e.overclock)) {
       choices.push({ name: "OVERCLOCK - " + e.name, f: e.f, description: e.description, i: i, rarity: rarityData["5"], type: "normal" })
     }
   });
@@ -2019,24 +1978,10 @@ function startLevelUp(isFirstUpgrade) {
 }
 
 async function showDeathScreen() {
+  started = false;
   const fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
   const fullHighscore = Object.values(JSON.parse(localStorage.getItem("highscore"))).reduce((a, b) => a + b, 0);
   const deathScreen = document.getElementById("deathDialog");
-
-  async function tryUsername(wasInvalid = false) {
-    try {
-      await setUsername(wasInvalid)
-    } catch (e) {
-      vex.closeAll()
-      await new Promise((r) => setTimeout(r, 700));
-      await tryUsername(true)
-    }
-  }
-  if (!localStorage.getItem("username")) {
-    pause = true
-    await tryUsername(false)
-    pause = false
-  }
 
   deathScreen.showModal();
   deathScreen.querySelector("span").innerHTML = `
@@ -2067,18 +2012,23 @@ async function showDeathScreen() {
   <span>Upgrades: ${player.stats.upgrades}</span><br>`;
 
   document.getElementById("totalStats").innerHTML = "<span>loading stats...</span>";
-  setUser({ relative: true }, JSON.parse(JSON.stringify(player.changedStats))).then(async () => {
-    let user = await getUser();
-    document.getElementById("totalStats").innerHTML = `
-    <h2>Total stats:</h2>
-    <span>Runs: ${user.runs}</span><br>
-    <span>Time played: ${floor(user.timePlayed / 3600)}:${floor(user.timePlayed / 60)}</span><br>
-    <span>Kills: ${user.kills}</span><br>
-    <span>Shots fired: ${user.bulletsFired}</span><br>
-    <span>Shots hit: ${user.bulletsHit}</span><br>
-    <span>Hit accuracy: ${Math.round(user.bulletsHit / user.bulletsFired * 1000) / 10}%</span><br>
-    <span>Upgrades: ${user.upgrades}</span><br>`;
-  });
+
+  if (localStorage.getItem("signedIn")) {
+    setUser({ relative: true }, JSON.parse(JSON.stringify(player.changedStats))).then(async () => {
+      let user = await getUser();
+      document.getElementById("totalStats").innerHTML = `
+      <h2>Total stats:</h2>
+      <span>Runs: ${user.runs}</span><br>
+      <span>Time played: ${floor(user.timePlayed / 3600)}:${floor(user.timePlayed / 60)}</span><br>
+      <span>Kills: ${user.kills}</span><br>
+      <span>Shots fired: ${user.bulletsFired}</span><br>
+      <span>Shots hit: ${user.bulletsHit}</span><br>
+      <span>Hit accuracy: ${Math.round(user.bulletsHit / user.bulletsFired * 1000) / 10}%</span><br>
+      <span>Upgrades: ${user.upgrades}</span><br>`;
+    });
+  } else {
+    document.getElementById("totalStats").innerHTML = `<br><button onclick="document.getElementById('deathDialog').close();userSignIn()">Sign in</button><br><span>to get total stats</span>`;
+  }
 }
 
 let loadMoreButton = document.getElementById("loadMoreButton");
@@ -2100,7 +2050,7 @@ function renderHighscores(highscores, i = null) {
     const seconds = time - minutes * 60;
     let htmlString = `${i}. <b>${data.username}</b>: ${data.total.toLocaleString()} - ${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
 
-    if (Object.hasOwn(data, "version") && data.version !== version) {
+    if ("version" in data && data.version !== version) {
       htmlString = `<span class="wrongVersion" title="This record was achieved on version ${data.version}, the game may have been rebalanced since then.">${htmlString}</span>`
     }
 
