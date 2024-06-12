@@ -1908,7 +1908,17 @@ function pauseGame() {
     }).join("")
 
     player.weapons.forEach(weapon => {
-      upgradeElement.innerHTML += `<b>${weapon.name}</b><br> ${weapon.upgrades.map(upgrade => upgrade.times > 0 ? `${upgrade.name}: ${upgrade.times}/${upgrade.max}<br>` : "").join("")}`
+      upgradeElement.innerHTML += `<b>${weapon.name}</b><br>`
+      weapon.upgrades.forEach(upgrade => {
+        if (upgrade.times > 0) {
+          let upgradeColor = "white";
+
+          if (upgrade.times == upgrade.max) upgradeColor = "gold"
+          if (upgrade.times > upgrade.max) upgradeColor = "red"
+
+          upgradeElement.innerHTML += `<p style="color: ${upgradeColor};">${upgrade.name}: ${upgrade.times}/${upgrade.max}</p>`
+        }
+      })
     })
     upgradeElement.innerHTML += `${version} (${pageTime.toLocaleDateString().replaceAll("/", ".")}.${pageTime.getHours()})`
 
@@ -1962,7 +1972,7 @@ function startLevelUp(isFirstUpgrade) {
               choices.push({ name: `${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon.onUpgrade?.(weapon) }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade, rarity: upgrade.rarity })
             }
           } else if (Math.floor(Math.random() * 100) == 96) {
-            choices.push({ name: `OVERCLOCK - ${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon.onUpgrade?.(weapon)}, description: upgrade.desc, type: "weaponUpgrade", self: upgrade, rarity:5 })
+            choices.push({ name: `OVERCLOCK - ${playerWeapon.name} - ${upgrade.name}`, f: () => { upgrade.onGet(playerWeapon); upgrade.times++; weapon.onUpgrade?.(weapon) }, description: upgrade.desc, type: "weaponUpgrade", self: upgrade, rarity: 5 })
           }
         });
       });
