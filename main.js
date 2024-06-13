@@ -1,6 +1,6 @@
 //const p5 = require("p5");
 
-const version = "4.0.0";
+const version = "4.0.1";
 const pageTime = new Date();
 
 document.getElementById("levelUpDialog").addEventListener("cancel", (e) => e.preventDefault());
