@@ -206,7 +206,7 @@ const weapons = [
         projectiles.splice(projectileI, 1);
         projectileI--;
         player.stats.bulletsHit++;
-        player.changedStats.bulletsFired++;
+        player.changedStats.bulletsHit++;
         asteroid.hp -= projectile.dmg;
         if (asteroid.hp <= 0) {
           asteroids.splice(asteroidI, 1);
@@ -1830,7 +1830,7 @@ resolution.addEventListener("input", updateCanvasSize)
 function drawPauseMenu() {
   document.getElementById("control").innerHTML = ["AD Turning", "Mouse + WASD", "WASD + Arrow Turning"][prefers.controls];
   document.getElementById("signInBtn").innerHTML = localStorage.getItem("signedIn") ? "Sign out" : "Sign in";
-  document.getElementById("signInBtn").onclick = localStorage.getItem("signedIn") ? "userSignOut()" : "userSignIn()";
+  document.getElementById("signInBtn").setAttribute("onclick", localStorage.getItem("signedIn") ? "userSignOut()" : "userSignIn()");
 }
 
 function getCanPause() {
@@ -1978,7 +1978,6 @@ function startLevelUp(isFirstUpgrade) {
 }
 
 async function showDeathScreen() {
-  started = false;
   const fullPlayerScore = Object.values(player.score).reduce((a, b) => a + b, 0);
   const fullHighscore = Object.values(JSON.parse(localStorage.getItem("highscore"))).reduce((a, b) => a + b, 0);
   const deathScreen = document.getElementById("deathDialog");
@@ -2019,7 +2018,7 @@ async function showDeathScreen() {
       document.getElementById("totalStats").innerHTML = `
       <h2>Total stats:</h2>
       <span>Runs: ${user.runs}</span><br>
-      <span>Time played: ${floor(user.timePlayed / 3600)}:${floor(user.timePlayed / 60)}</span><br>
+      <span>Time played: ${formatTime(user.timePlayed)}</span><br>
       <span>Kills: ${user.kills}</span><br>
       <span>Shots fired: ${user.bulletsFired}</span><br>
       <span>Shots hit: ${user.bulletsHit}</span><br>
@@ -2027,7 +2026,7 @@ async function showDeathScreen() {
       <span>Upgrades: ${user.upgrades}</span><br>`;
     });
   } else {
-    document.getElementById("totalStats").innerHTML = `<br><button onclick="document.getElementById('deathDialog').close();userSignIn()">Sign in</button><br><span>to get total stats</span>`;
+    document.getElementById("totalStats").innerHTML = `<br><button onclick="userSignIn()">Sign in</button><br><span>to get total stats</span>`;
   }
 }
 
@@ -2264,4 +2263,13 @@ function getTriangle(num) {
     num -= decrease;
   }
   return decrease;
+}
+
+function formatTime(time) {
+  let hr = "" + (floor(time / 3600));
+  let min = "" + (floor(time / 60) % 60);
+  let sec = "" + (floor(time) % 60);
+  if (min.length < 2) min = "0" + min;
+  if (sec.length < 2) sec = "0" + sec;
+  return `${hr}:${min}:${sec}`;
 }

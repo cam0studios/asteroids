@@ -63,6 +63,10 @@ window.getScores = async function (startAtObject) {
 
 //firebase user stuff
 window.userSignIn = function () {
+  let deathClosed = document.getElementById("deathDialog").open;
+  let pauseClosed = document.getElementById("pauseMenu").open;
+  if (deathClosed) document.getElementById("deathDialog").close();
+  if (pauseClosed) document.getElementById("pauseMenu").close();
   async function waitForVex(props) {
     return new Promise((res, rej) => {
       if ("callback" in props) props.callback = () => { props.callback(...arguments); res(...arguments) };
@@ -113,7 +117,10 @@ window.userSignIn = function () {
       localStorage.setItem("user", e.username);
       localStorage.setItem("signedIn", "true");
       pause = false;
-      if (!started) setupVars();
+      setTimeout(() => {
+        if (deathClosed) showDeathScreen();
+        if (pauseClosed) pauseGame();
+      }, 100);
       res();
     });
   });
