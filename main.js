@@ -1989,7 +1989,7 @@ async function showDeathScreen() {
   `;
   document.getElementById("leaderboard").innerHTML = "loading leaderboard...";
 
-  submitScore(username, timer, player.score, version).then(async () => {
+  submitScore(username || localStorage.getItem("user"), timer, player.score, version).then(async () => {
 
     const globalHighscores = await getScores();
     document.getElementById("leaderboard").innerHTML = "<h2>Leaderboard:</h2>";
